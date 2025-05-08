@@ -1,0 +1,112 @@
+{
+  "panels": [
+    {
+      "title": "Airflow DAG Runs Timeline",
+      "type": "state-timeline",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "your_prometheus_datasource_uid"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 70,
+            "showPoints": "auto"
+          },
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "success": {
+                  "color": "green",
+                  "index": 0
+                },
+                "running": {
+                  "color": "blue",
+                  "index": 1
+                },
+                "failed": {
+                  "color": "red",
+                  "index": 2
+                }
+              }
+            }
+          ]
+        }
+      },
+      "options": {
+        "alignValue": "left",
+        "rowHeight": 0.9,
+        "showValue": "auto",
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        },
+        "mergeValues": true
+      },
+      "targets": [
+        {
+          "expr": "airflow_dag_run_status{status=~\"success|failed|running\"} > 0",
+          "instant": false,
+          "legendFormat": "{{dag_id}} - {{status}}",
+          "range": true
+        }
+      ],
+      "timeFrom": "now-24h",
+      "timeShift": null
+    },
+    {
+      "title": "Airflow DAG Run Duration",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "your_prometheus_datasource_uid"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 1,
+            "fillOpacity": 70,
+            "spanNulls": false
+          },
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "s",
+          "decimals": 1
+        }
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": ["mean", "max"]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "expr": "airflow_dag_run_duration_seconds",
+          "instant": false,
+          "legendFormat": "{{dag_id}}",
+          "range": true
+        }
+      ],
+      "timeFrom": "now-24h",
+      "timeShift": null
+    }
+  ]
+}
