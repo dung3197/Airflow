@@ -1,3 +1,48 @@
+from prometheus_client import CollectorRegistry, Gauge, push_to_gateway
+from airflow.utils.state import State
+from datetime import datetime
+
+def push_task_metric(context):
+    """
+    Push a single task's metric to Pushgateway.
+    """
+    ti = context['ti']
+    task_id = ti.task_id
+    status = ti.state or "unknown"
+    timestamp = str(ti.end_date or datetime.utcnow())
+
+    registry = CollectorRegistry()
+
+    # Build labels with dynamic label key (task name)
+    labels = {
+        'Task': task_id,
+        'timestamps': timestamp,
+        task_id: status  # Dynamic label key
+    }
+
+    g = Gauge(
+        'TI_stats',
+        'Airflow Task Stats',
+        list(labels.keys()),
+        registry=registry
+    )
+
+    state_map = {
+        State.SUCCESS: 1,
+        State.FAILED: 2,
+        State.UP_FOR_RETRY: 3,
+        State.RUNNING: 4,
+        State.SKIPPED: 5,
+        'unknown': 0
+    }
+
+    g.labels(**labels).set(state_map.get(status, 0))
+
+    push_to_gateway(
+        'your-pushgateway-host:9091',
+        job=f"airflow_task_{ti.dag_id}",
+        registry=registry
+    )
 def push_dag_metric(context):
     """
     Push DAG run metric to Pushgateway.
