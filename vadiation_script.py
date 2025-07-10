@@ -54,3 +54,75 @@ minio_count = len(df)
 print(f"Database count for {target_date}: {db_count}, MinIO count: {minio_count}")
 cursor.close()
 conn.close()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+data_source:
+  type: spark
+  connection:
+    master: local  # Adjust to your Spark cluster URL if not local
+    app_name: soda-spark
+  options:
+    spark.sql.warehouse.dir: /tmp/spark-warehouse
+    spark.hadoop.fs.s3a.access.key: minio         # Your MinIO access key
+    spark.hadoop.fs.s3a.secret.key: minio123      # Your MinIO secret key
+    spark.hadoop.fs.s3a.endpoint: http://localhost:9000  # Your MinIO endpoint
+    spark.hadoop.fs.s3a.path.style.access: true   # Enable path-style access for MinIO
+
+
+
+
+
+
+
+
+scan:
+  data_source: spark
+  sql: |
+    SELECT * FROM avro.`s3a://commerce/debezium.commerce.products/date=2025-07-10/*.avro`
+
+checks:
+  - row_count > 0                       # Ensure there are records
+  - missing_count(id) = 0               # Check for missing IDs
+  - duplicate_count(id) = 0             # Check for duplicate IDs
+  - schema:                             # Validate schema for 'id'
+      name: id
+      type: integer
+  - schema:                             # Validate schema for 'name'
+      name: name
+      type: string
+
+
+
+scan:
+  data_source: spark
+  sql: |
+    SELECT * FROM avro.`s3a://commerce/debezium.commerce.products/date=${date}/*.avro`
+
+
+
+
+
+
+
+
+
+
+
