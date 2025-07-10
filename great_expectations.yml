@@ -1,0 +1,22 @@
+config_version: 3.0
+datasources:
+  minio_datasource:
+    class_name: Datasource
+    execution_engine:
+      class_name: PandasExecutionEngine
+    data_connectors:
+      partitioned_avro_connector:
+        class_name: InferredAssetS3DataConnector
+        bucket: commerce
+        prefix: debezium.commerce.products/
+        default_regex:
+          pattern: date=(.*)/.*\.avro
+          group_names:
+            - date_partition
+        access_key_id: minio
+        secret_access_key: minio123
+        endpoint_url: http://localhost:9000
+        batch_spec_passthrough:
+          reader_method: avro
+          reader_options:
+            schema: {}  # Optional: Define schema if known
