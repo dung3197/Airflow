@@ -125,4 +125,41 @@ scan:
 
 
 
+{
+  "version": "1.0",
+  "entries": [
+    {
+      "dataPath": "CDC_OGG/Category1",
+      "name": "Category1",
+      "type": "table",
+      "format": "avro",
+      "partitions": [
+        {
+          "name": "date",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "dataPath": "CDC_OGG/Category2",
+      "name": "Category2",
+      "type": "table",
+      "format": "avro",
+      "partitions": [
+        {
+          "name": "date",
+          "type": "string"
+        }
+      ]
+    }
+  ]
+}
+
+
+
+
+
+
+
+
 
