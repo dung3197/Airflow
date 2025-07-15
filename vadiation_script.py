@@ -161,5 +161,41 @@ scan:
 
 
 
+import pandas as pd
+
+# Step 1: Read files
+excel_df = pd.read_excel('your_excel_file.xlsx')
+csv_df = pd.read_csv('your_csv_file.csv')
+
+# Step 2: Get only the UserId columns (dropna just in case)
+excel_user_ids = set(excel_df['UserId'].dropna())
+csv_user_ids = set(csv_df['UserId'].dropna())
+
+# Step 3: Find unmatched UserIds
+only_in_excel = excel_user_ids - csv_user_ids
+only_in_csv = csv_user_ids - excel_user_ids
+
+# Step 4: Print or save the results
+print("UserIds only in Excel file:")
+print(only_in_excel)
+
+print("\nUserIds only in CSV file:")
+print(only_in_csv)
+
+# Optional: Create DataFrames from unmatched sets
+df_only_in_excel = excel_df[excel_df['UserId'].isin(only_in_excel)]
+df_only_in_csv = csv_df[csv_df['UserId'].isin(only_in_csv)]
+
+# Save to files if needed
+# df_only_in_excel.to_csv('only_in_excel.csv', index=False)
+# df_only_in_csv.to_csv('only_in_csv.csv', index=False)
+
+
+
+
+
+
+
+
 
 
