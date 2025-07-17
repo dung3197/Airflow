@@ -199,3 +199,38 @@ df_only_in_csv = csv_df[csv_df['UserId'].isin(only_in_csv)]
 
 
 
+DO $$
+DECLARE
+    rec RECORD;
+    query TEXT;
+    result RECORD;
+BEGIN
+    -- Create a temporary table to store results
+    CREATE TEMP TABLE row_counts (table_name TEXT, row_count BIGINT);
+
+    -- Loop through all tables in the public schema
+    FOR rec IN (
+        SELECT table_name
+        FROM information_schema.tables
+        WHERE table_schema = 'public'
+          AND table_catalog = 'DB1'
+          AND table_type = 'BASE TABLE'
+    )
+    LOOP
+        query := format('SELECT %L AS table_name, COUNT(*) AS row_count FROM public.%I', rec.table_name, rec.table_name);
+        EXECUTE query INTO result;
+        INSERT INTO row_counts (table_name, row_count) VALUES (result.table_name, result.row_count);
+    END LOOP;
+
+    -- Select the results
+    SELECT * FROM row_counts;
+
+    -- Drop the temporary table
+    DROP TABLE row_counts;
+END $$;
+
+
+
+
+
+
