@@ -280,3 +280,26 @@ DROP TABLE row_counts;
 
 
 
+CREATE OR REPLACE FUNCTION get_table_row_counts()
+RETURNS TABLE (table_name TEXT, row_count BIGINT) AS $$
+DECLARE
+    rec RECORD;
+    query TEXT;
+BEGIN
+    -- Loop through all tables in the public schema of DB1
+    FOR rec IN (
+        SELECT table_name
+        FROM information_schema.tables
+        WHERE table_schema = 'public'
+          AND table_catalog = 'DB1'
+          AND table_type = 'BASE TABLE'
+    )
+    LOOP
+        query := format('SELECT %L AS table_name, COUNT(*) AS row_count FROM public.%I', rec.table_name, rec.table_name);
+        RETURN QUERY EXECUTE query;
+    END LOOP;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Call the function to get results
+SELECT * FROM get_table_row_counts();
