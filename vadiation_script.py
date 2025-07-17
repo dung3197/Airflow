@@ -234,3 +234,49 @@ END $$;
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+-- Create a temporary table to store results
+CREATE TEMP TABLE row_counts (table_name TEXT, row_count BIGINT);
+
+-- Populate the temporary table
+DO $$
+DECLARE
+    rec RECORD;
+    query TEXT;
+BEGIN
+    -- Loop through all tables in the public schema
+    FOR rec IN (
+        SELECT table_name
+        FROM information_schema.tables
+        WHERE table_schema = 'public'
+          AND table_catalog = 'DB1'
+          AND table_type = 'BASE TABLE'
+    )
+    LOOP
+        query := format('INSERT INTO row_counts (table_name, row_count) SELECT %L, COUNT(*) FROM public.%I', rec.table_name, rec.table_name);
+        EXECUTE query;
+    END LOOP;
+END $$;
+
+-- Query the results
+SELECT * FROM row_counts;
+
+-- Clean up
+DROP TABLE row_counts;
+
+
+
+
+
+
