@@ -279,183 +279,24 @@ DROP TABLE row_counts;
 
 
 
+SELECT 'COL1' AS column_name
+FROM dual
+WHERE NOT EXISTS (
+  SELECT 1 FROM MY_TABLE WHERE COL1 IS NULL
+)
+UNION ALL
+SELECT 'COL2'
+FROM dual
+WHERE NOT EXISTS (
+  SELECT 1 FROM MY_TABLE WHERE COL2 IS NULL
+)
+UNION ALL
+SELECT 'COL3'
+FROM dual
+WHERE NOT EXISTS (
+  SELECT 1 FROM MY_TABLE WHERE COL3 IS NULL
+);
 
-CREATE OR REPLACE FUNCTION get_table_row_counts()
-RETURNS TABLE (table_name TEXT, row_count BIGINT) AS $$
-DECLARE
-    rec RECORD;
-    query TEXT;
-BEGIN
-    -- Loop through all tables in the public schema of DB1
-    FOR rec IN (
-        SELECT table_name
-        FROM information_schema.tables
-        WHERE table_schema = 'public'
-          AND table_catalog = 'DB1'
-          AND table_type = 'BASE TABLE'
-    )
-    LOOP
-        query := format('SELECT %L AS table_name, COUNT(*) AS row_count FROM public.%I', rec.table_name, rec.table_name);
-        RETURN QUERY EXECUTE query;
-    END LOOP;
-END;
-$$ LANGUAGE plpgsql;
-
--- Call the function to get results
-SELECT * FROM get_table_row_counts();
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
--- First, create a pipelined function to return matching column names
-CREATE OR REPLACE TYPE varchar2_table AS TABLE OF VARCHAR2(4000);
-/
-
-CREATE OR REPLACE FUNCTION get_non_null_date_columns(p_table_name IN VARCHAR2, p_owner IN VARCHAR2)
-  RETURN varchar2_table PIPELINED
-AS
-  v_sql     VARCHAR2(1000);
-  v_count   NUMBER;
-BEGIN
-  FOR col IN (
-    SELECT column_name
-    FROM all_tab_columns
-    WHERE table_name = UPPER(p_table_name)
-      AND owner = UPPER(p_owner)
-      AND data_type = 'DATE'
-  )
-  LOOP
-    v_sql := 'SELECT COUNT(*) FROM ' || p_owner || '.' || p_table_name || 
-             ' WHERE "' || col.column_name || '" IS NULL';
-
-    EXECUTE IMMEDIATE v_sql INTO v_count;
-
-    IF v_count = 0 THEN
-      PIPE ROW(col.column_name);
-    END IF;
-  END LOOP;
-
-  RETURN;
-END;
-/
-
-
-
-
-
-
-
-
-
-
-DECLARE
-  CURSOR date_columns IS
-    SELECT column_name
-    FROM user_tab_columns
-    WHERE table_name = 'YOUR_TABLE_NAME'
-      AND data_type = 'DATE';
-  v_sql VARCHAR2(1000);
-  v_null_count NUMBER;
-BEGIN
-  FOR col IN date_columns LOOP
-    -- Construct dynamic SQL to count NULLs in the column
-    v_sql := 'SELECT COUNT(*) FROM YOUR_TABLE_NAME WHERE ' || col.column_name || ' IS NULL';
-    
-    -- Execute the query
-    EXECUTE IMMEDIATE v_sql INTO v_null_count;
-    
-    -- Output the result
-    IF v_null_count = 0 THEN
-      DBMS_OUTPUT.PUT_LINE('Column ' || col.column_name || ' has no NULL values.');
-    ELSE
-      DBMS_OUTPUT.PUT_LINE('Column ' || col.column_name || ' has ' || v_null_count || ' NULL values.');
-    END IF;
-  END LOOP;
-END;
-/
-
-
-
-
-
-
-
-SELECT 'SELECT ''' || column_name || ''' AS column_name FROM dual WHERE NOT EXISTS (SELECT 1 FROM MY_TABLE WHERE "' || column_name || '" IS NULL) UNION ALL'
-FROM all_tab_columns
-WHERE table_name = 'MY_TABLE'
-  AND owner = 'YOUR_SCHEMA'
-  AND data_type = 'DATE';
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-DECLARE
-  CURSOR date_columns IS
-    SELECT column_name
-    FROM user_tab_columns
-    WHERE table_name = 'YOUR_TABLE_NAME'
-      AND data_type = 'DATE';
-  v_sql VARCHAR2(1000);
-  v_null_count NUMBER;
-BEGIN
-  FOR col IN date_columns LOOP
-    -- Construct dynamic SQL to count NULLs in the column
-    v_sql := 'SELECT COUNT(*) FROM YOUR_TABLE_NAME WHERE ' || col.column_name || ' IS NULL';
-    
-    -- Execute the query
-    EXECUTE IMMEDIATE v_sql INTO v_null_count;
-    
-    -- Output the result
-    IF v_null_count = 0 THEN
-      DBMS_OUTPUT.PUT_LINE('Column ' || col.column_name || ' has no NULL values.');
-    ELSE
-      DBMS_OUTPUT.PUT_LINE('Column ' || col.column_name || ' has ' || v_null_count || ' NULL values.');
-    END IF;
-  END LOOP;
-END;
-/
 
 
 
