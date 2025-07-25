@@ -303,3 +303,50 @@ $$ LANGUAGE plpgsql;
 
 -- Call the function to get results
 SELECT * FROM get_table_row_counts();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+BEGIN
+  FOR col IN (
+    SELECT column_name
+    FROM all_tab_columns
+    WHERE table_name = 'MY_TABLE'
+      AND owner = 'YOUR_SCHEMA'
+      AND data_type = 'DATE'
+  )
+  LOOP
+    EXECUTE IMMEDIATE '
+      SELECT COUNT(*) FROM MY_TABLE WHERE ' || col.column_name || ' IS NULL'
+    INTO :null_count;
+
+    IF :null_count = 0 THEN
+      DBMS_OUTPUT.PUT_LINE(col.column_name || ' has no NULLs');
+    END IF;
+  END LOOP;
+END;
