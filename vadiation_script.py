@@ -456,3 +456,14 @@ BEGIN
   END LOOP;
 END;
 /
+
+
+
+
+
+
+SELECT column_name, 
+       'SELECT ''' || column_name || ''' AS column_name FROM dual WHERE NOT EXISTS (SELECT 1 FROM ' || table_name || ' WHERE ' || column_name || ' IS NULL FETCH FIRST 1 ROW ONLY)' AS sql_to_run
+FROM user_tab_columns
+WHERE table_name = 'EMPLOYEES'
+  AND data_type = 'DATE';
