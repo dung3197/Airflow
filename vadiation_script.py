@@ -332,21 +332,53 @@ SELECT * FROM get_table_row_counts();
 
 
 
+-- First, create a pipelined function to return matching column names
+CREATE OR REPLACE TYPE varchar2_table AS TABLE OF VARCHAR2(4000);
+/
+
+CREATE OR REPLACE FUNCTION get_non_null_date_columns(p_table_name IN VARCHAR2, p_owner IN VARCHAR2)
+  RETURN varchar2_table PIPELINED
+AS
+  v_sql     VARCHAR2(1000);
+  v_count   NUMBER;
 BEGIN
   FOR col IN (
     SELECT column_name
     FROM all_tab_columns
-    WHERE table_name = 'MY_TABLE'
-      AND owner = 'YOUR_SCHEMA'
+    WHERE table_name = UPPER(p_table_name)
+      AND owner = UPPER(p_owner)
       AND data_type = 'DATE'
   )
   LOOP
-    EXECUTE IMMEDIATE '
-      SELECT COUNT(*) FROM MY_TABLE WHERE ' || col.column_name || ' IS NULL'
-    INTO :null_count;
+    v_sql := 'SELECT COUNT(*) FROM ' || p_owner || '.' || p_table_name || 
+             ' WHERE "' || col.column_name || '" IS NULL';
 
-    IF :null_count = 0 THEN
-      DBMS_OUTPUT.PUT_LINE(col.column_name || ' has no NULLs');
+    EXECUTE IMMEDIATE v_sql INTO v_count;
+
+    IF v_count = 0 THEN
+      PIPE ROW(col.column_name);
     END IF;
   END LOOP;
+
+  RETURN;
 END;
+/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+SELECT 'SELECT ''' || column_name || ''' AS column_name FROM dual WHERE NOT EXISTS (SELECT 1 FROM MY_TABLE WHERE "' || column_name || '" IS NULL) UNION ALL'
+FROM all_tab_columns
+WHERE table_name = 'MY_TABLE'
+  AND owner = 'YOUR_SCHEMA'
+  AND data_type = 'DATE';
