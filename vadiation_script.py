@@ -373,6 +373,34 @@ END;
 
 
 
+DECLARE
+  CURSOR date_columns IS
+    SELECT column_name
+    FROM user_tab_columns
+    WHERE table_name = 'YOUR_TABLE_NAME'
+      AND data_type = 'DATE';
+  v_sql VARCHAR2(1000);
+  v_null_count NUMBER;
+BEGIN
+  FOR col IN date_columns LOOP
+    -- Construct dynamic SQL to count NULLs in the column
+    v_sql := 'SELECT COUNT(*) FROM YOUR_TABLE_NAME WHERE ' || col.column_name || ' IS NULL';
+    
+    -- Execute the query
+    EXECUTE IMMEDIATE v_sql INTO v_null_count;
+    
+    -- Output the result
+    IF v_null_count = 0 THEN
+      DBMS_OUTPUT.PUT_LINE('Column ' || col.column_name || ' has no NULL values.');
+    ELSE
+      DBMS_OUTPUT.PUT_LINE('Column ' || col.column_name || ' has ' || v_null_count || ' NULL values.');
+    END IF;
+  END LOOP;
+END;
+/
+
+
+
 
 
 
