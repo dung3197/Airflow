@@ -347,87 +347,167 @@ WHERE table_name = 'EMPLOYEES'
 
 
 
-table_name: customer_transactions
-num_rows: 50000000
-columns:
-  - { name: customer_id, type: int, faker: random_int }
-  - { name: account_number, type: string, faker: iban }
-  - { name: full_name, type: string, faker: name }
-  - { name: email, type: string, faker: email }
-  - { name: phone, type: string, faker: phone_number }
-  - { name: address, type: string, faker: address }
-  - { name: date_of_birth, type: date, faker: date_of_birth }
-  - { name: gender, type: string, faker: random_element, options: { elements: [Male, Female, Other] } }
-  - { name: marital_status, type: string, faker: random_element, options: { elements: [Single, Married, Divorced, Widowed] } }
-  - { name: nationality, type: string, faker: country }
-  - { name: employment_status, type: string, faker: job }
-  - { name: employer_name, type: string, faker: company }
-  - { name: annual_income, type: float, faker: pyfloat }
-  - { name: credit_score, type: int, faker: random_int, options: { min: 300, max: 850 } }
-  - { name: kyc_verified, type: bool, faker: boolean }
-  - { name: social_security_number, type: string, faker: ssn }
-  - { name: passport_number, type: string, faker: bothify, options: { text: "??######" } }
-  - { name: driver_license_number, type: string, faker: bothify, options: { text: "DL#########" } }
-  - { name: account_type, type: string, faker: random_element, options: { elements: [Savings, Checking, Business, Fixed Deposit] } }
-  - { name: account_open_date, type: datetime, faker: date_this_decade }
-  - { name: account_status, type: string, faker: random_element, options: { elements: [Active, Suspended, Closed] } }
-  - { name: branch_code, type: string, faker: bothify, options: { text: "BR###" } }
-  - { name: account_balance, type: float, faker: pyfloat }
-  - { name: overdraft_enabled, type: bool, faker: boolean }
-  - { name: overdraft_limit, type: float, faker: pyfloat }
-  - { name: last_transaction_date, type: datetime, faker: date_time_this_year }
-  - { name: transaction_amount, type: float, faker: pyfloat }
-  - { name: transaction_type, type: string, faker: random_element, options: { elements: [Deposit, Withdrawal, Transfer, Payment] } }
-  - { name: merchant_name, type: string, faker: company }
-  - { name: merchant_category, type: string, faker: random_element, options: { elements: [Retail, Travel, Dining, Health, Utilities, Education] } }
-  - { name: merchant_country, type: string, faker: country }
-  - { name: transaction_currency, type: string, faker: currency_code }
-  - { name: exchange_rate, type: float, faker: pyfloat }
-  - { name: transaction_status, type: string, faker: random_element, options: { elements: [Success, Failed, Pending] } }
-  - { name: risk_score, type: float, faker: pyfloat }
-  - { name: fraud_flag, type: bool, faker: boolean }
-  - { name: login_time, type: datetime, faker: date_time_this_year }
-  - { name: logout_time, type: datetime, faker: date_time_this_year }
-  - { name: session_duration, type: int, faker: random_int, options: { min: 1, max: 7200 } }
-  - { name: device_type, type: string, faker: random_element, options: { elements: [Mobile, Desktop, Tablet] } }
-  - { name: ip_address, type: string, faker: ipv4 }
-  - { name: referral_code, type: string, faker: bothify, options: { text: "REF####" } }
-  - { name: referred_by, type: string, faker: name }
-  - { name: marketing_opt_in, type: bool, faker: boolean }
-  - { name: sms_alerts_enabled, type: bool, faker: boolean }
-  - { name: email_alerts_enabled, type: bool, faker: boolean }
-  - { name: rewards_points, type: int, faker: random_int, options: { min: 0, max: 100000 } }
-  - { name: rewards_status, type: string, faker: random_element, options: { elements: [Silver, Gold, Platinum, Diamond] } }
-  - { name: preferred_language, type: string, faker: language_name }
-  - { name: education_level, type: string, faker: random_element, options: { elements: [High School, Bachelor, Master, PhD] } }
-  - { name: university_attended, type: string, faker: company }
-  - { name: graduation_year, type: int, faker: year }
-  - { name: housing_type, type: string, faker: random_element, options: { elements: [Owned, Rented, Mortgaged, Company Provided] } }
-  - { name: number_of_dependents, type: int, faker: random_int, options: { min: 0, max: 5 } }
-  - { name: residential_status, type: string, faker: random_element, options: { elements: [Resident, Non-Resident] } }
-  - { name: utility_provider, type: string, faker: company }
-  - { name: tax_id, type: string, faker: bothify, options: { text: "TAX########" } }
-  - { name: salary_account, type: bool, faker: boolean }
-  - { name: salary_payment_frequency, type: string, faker: random_element, options: { elements: [Monthly, Bi-Weekly, Weekly] } }
-  - { name: employment_start_date, type: date, faker: date_this_decade }
-  - { name: employment_end_date, type: date, faker: date_this_decade }
-  - { name: loan_status, type: string, faker: random_element, options: { elements: [Active, Closed, Defaulted] } }
-  - { name: loan_amount, type: float, faker: pyfloat }
-  - { name: loan_type, type: string, faker: random_element, options: [Personal, Home, Auto, Education, Credit Card] }
-  - { name: repayment_schedule, type: string, faker: random_element, options: [Monthly, Quarterly, Bi-Annually, Annually] }
-  - { name: missed_payments, type: int, faker: random_int, options: { min: 0, max: 12 } }
-  - { name: pension_contribution, type: float, faker: pyfloat }
-  - { name: insurance_policy_number, type: string, faker: bothify, options: { text: "INS##########" } }
-  - { name: insurance_type, type: string, faker: random_element, options: [Health, Life, Auto, Travel] }
-  - { name: insurance_expiry_date, type: date, faker: date_this_decade }
-  - { name: crypto_wallet, type: bool, faker: boolean }
-  - { name: crypto_balance, type: float, faker: pyfloat }
-  - { name: savings_goal, type: float, faker: pyfloat }
-  - { name: goal_completion_percentage, type: float, faker: pyfloat }
-  - { name: rent_payment, type: float, faker: pyfloat }
-  - { name: monthly_expenses, type: float, faker: pyfloat }
-  - { name: source_system, type: string, faker: random_element, options: [CoreBanking, MobileApp, WebPortal, ATM] }
-  - { name: blacklist_status, type: bool, faker: boolean }
-  - { name: record_created_at, type: datetime, faker: date_time_this_year }
-  - { name: record_updated_at, type: datetime, faker: date_time_this_year }
+version: 1
+config:
+  locale: en_US
+tables:
+  - table_name: customer_transactions
+    row_count: 50000000
+    columns:
+      - column_name: customer_id
+        data: fake.random_int(1, 100000000)
+      - column_name: account_number
+        data: fake.iban()
+      - column_name: full_name
+        data: fake.name()
+      - column_name: email
+        data: fake.email()
+      - column_name: phone
+        data: fake.phone_number()
+      - column_name: address
+        data: fake.address().replace("\n"," ")
+      - column_name: date_of_birth
+        data: fake.date_of_birth()
+      - column_name: gender
+        data: fake.random_element(['Male','Female','Other'])
+      - column_name: account_type
+        data: fake.random_element(['Savings','Checking','Business'])
+      - column_name: account_open_date
+        data: fake.date_this_decade()
+      - column_name: last_transaction_date
+        data: fake.date_time_this_year()
+      - column_name: kyc_verified
+        data: fake.boolean()
+      - column_name: annual_income
+        data: fake.pyfloat(left_digits=5, right_digits=2, positive=True)
+      - column_name: employment_status
+        data: fake.job()
+      - column_name: credit_score
+        data: fake.random_int(300, 850)
+      - column_name: transaction_amount
+        data: fake.pyfloat(left_digits=4, right_digits=2, positive=True)
+      - column_name: transaction_type
+        data: fake.random_element(['Deposit','Withdrawal','Transfer','Payment'])
+      - column_name: merchant_name
+        data: fake.company()
+      - column_name: merchant_category
+        data: fake.bs()
+      - column_name: merchant_country
+        data: fake.country()
+      - column_name: transaction_currency
+        data: fake.currency_code()
+      - column_name: exchange_rate
+        data: fake.pyfloat(left_digits=2, right_digits=4, positive=True)
+      - column_name: device_type
+        data: fake.random_element(['Mobile','Web','ATM','POS'])
+      - column_name: login_time
+        data: fake.date_time_this_month()
+      - column_name: logout_time
+        data: fake.date_time_this_month()
+      - column_name: ip_address
+        data: fake.ipv4()
+      - column_name: session_duration
+        data: fake.random_int(1,7200)
+      - column_name: risk_score
+        data: fake.pyfloat(left_digits=2, right_digits=2, positive=True)
+      - column_name: loan_status
+        data: fake.random_element(['Approved','Rejected','Pending'])
+      - column_name: loan_amount
+        data: fake.pyfloat(left_digits=4, right_digits=2, positive=True)
+      - column_name: loan_type
+        data: fake.random_element(['Home','Auto','Personal','Credit Line'])
+      - column_name: repayment_schedule
+        data: fake.random_element(['Monthly','Quarterly','Annually'])
+      - column_name: missed_payments
+        data: fake.random_int(0,12)
+      - column_name: branch_code
+        data: fake.bothify('BR###')
+      - column_name: referral_code
+        data: fake.bothify('REF####')
+      - column_name: referred_by
+        data: fake.name()
+      - column_name: marketing_opt_in
+        data: fake.boolean()
+      - column_name: sms_alerts_enabled
+        data: fake.boolean()
+      - column_name: email_alerts_enabled
+        data: fake.boolean()
+      - column_name: overdraft_enabled
+        data: fake.boolean()
+      - column_name: overdraft_limit
+        data: fake.pyfloat(left_digits=4, right_digits=2, positive=True)
+      - column_name: last_login
+        data: fake.date_time_this_year()
+      - column_name: failed_login_attempts
+        data: fake.random_int(0,10)
+      - column_name: account_status
+        data: fake.random_element(['Active','Inactive','Frozen','Closed'])
+      - column_name: account_balance
+        data: fake.pyfloat(left_digits=5, right_digits=2, positive=True)
+      - column_name: account_tier
+        data: fake.random_element(['Basic','Silver','Gold','Platinum'])
+      - column_name: rewards_points
+        data: fake.random_int(0,10000)
+      - column_name: rewards_status
+        data: fake.random_element(['Bronze','Silver','Gold'])
+      - column_name: preferred_language
+        data: fake.language_code()
+      - column_name: number_of_dependents
+        data: fake.random_int(0,5)
+      - column_name: residential_status
+        data: fake.random_element(['Owner','Renter','Living with Parents'])
+      - column_name: housing_type
+        data: fake.random_element(['Apartment','House','Townhouse'])
+      - column_name: social_security_number
+        data: fake.ssn()
+      - column_name: passport_number
+        data: fake.bothify('P########')
+      - column_name: driver_license_number
+        data: fake.bothify('DL#######')
+      - column_name: employment_start_date
+        data: fake.date_this_decade()
+      - column_name: employment_end_date
+        data: fake.date_this_decade()
+      - column_name: tax_id
+        data: fake.bothify('TIN#######')
+      - column_name: salary_payment_frequency
+        data: fake.random_element(['Weekly','Bi-Weekly','Monthly'])
+      - column_name: salary_account
+        data: fake.boolean()
+      - column_name: pension_contribution
+        data: fake.pyfloat(left_digits=4, right_digits=2, positive=True)
+      - column_name: insurance_policy_number
+        data: fake.bothify('INS#######')
+      - column_name: insurance_type
+        data: fake.random_element(['Health','Life','Auto','Home'])
+      - column_name: insurance_expiry_date
+        data: fake.future_date()
+      - column_name: investment_profile
+        data: fake.random_element(['Conservative','Balanced','Aggressive'])
+      - column_name: crypto_wallet
+        data: fake.boolean()
+      - column_name: crypto_balance
+        data: fake.pyfloat(left_digits=4, right_digits=2, positive=True)
+      - column_name: mortgage_account
+        data: fake.boolean()
+      - column_name: mortgage_balance
+        data: fake.pyfloat(left_digits=5, right_digits=2, positive=True)
+      - column_name: rent_payment
+        data: fake.pyfloat(left_digits=4, right_digits=2, positive=True)
+      - column_name: monthly_expenses
+        data: fake.pyfloat(left_digits=4, right_digits=2, positive=True)
+      - column_name: savings_goal
+        data: fake.pyfloat(left_digits=4, right_digits=2, positive=True)
+      - column_name: goal_completion_percentage
+        data: fake.pyfloat(left_digits=2, right_digits=2, positive=True)
+      - column_name: blacklist_status
+        data: fake.boolean()
+      - column_name: fraud_flag
+        data: fake.boolean()
+      - column_name: source_system
+        data: fake.random_element(['CRM','MobileApp','WebPortal','Batch'])
+      - column_name: record_created_at
+        data: fake.date_time_this_year()
+      - column_name: record_updated_at
+        data: fake.date_time_this_year()
 
