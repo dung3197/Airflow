@@ -308,3 +308,126 @@ SELECT column_name,
 FROM user_tab_columns
 WHERE table_name = 'EMPLOYEES'
   AND data_type = 'DATE';
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+table_name: customer_transactions
+num_rows: 50000000
+columns:
+  - { name: customer_id, type: int, faker: random_int }
+  - { name: account_number, type: string, faker: iban }
+  - { name: full_name, type: string, faker: name }
+  - { name: email, type: string, faker: email }
+  - { name: phone, type: string, faker: phone_number }
+  - { name: address, type: string, faker: address }
+  - { name: date_of_birth, type: date, faker: date_of_birth }
+  - { name: gender, type: string, faker: random_element, options: { elements: [Male, Female, Other] } }
+  - { name: marital_status, type: string, faker: random_element, options: { elements: [Single, Married, Divorced, Widowed] } }
+  - { name: nationality, type: string, faker: country }
+  - { name: employment_status, type: string, faker: job }
+  - { name: employer_name, type: string, faker: company }
+  - { name: annual_income, type: float, faker: pyfloat }
+  - { name: credit_score, type: int, faker: random_int, options: { min: 300, max: 850 } }
+  - { name: kyc_verified, type: bool, faker: boolean }
+  - { name: social_security_number, type: string, faker: ssn }
+  - { name: passport_number, type: string, faker: bothify, options: { text: "??######" } }
+  - { name: driver_license_number, type: string, faker: bothify, options: { text: "DL#########" } }
+  - { name: account_type, type: string, faker: random_element, options: { elements: [Savings, Checking, Business, Fixed Deposit] } }
+  - { name: account_open_date, type: datetime, faker: date_this_decade }
+  - { name: account_status, type: string, faker: random_element, options: { elements: [Active, Suspended, Closed] } }
+  - { name: branch_code, type: string, faker: bothify, options: { text: "BR###" } }
+  - { name: account_balance, type: float, faker: pyfloat }
+  - { name: overdraft_enabled, type: bool, faker: boolean }
+  - { name: overdraft_limit, type: float, faker: pyfloat }
+  - { name: last_transaction_date, type: datetime, faker: date_time_this_year }
+  - { name: transaction_amount, type: float, faker: pyfloat }
+  - { name: transaction_type, type: string, faker: random_element, options: { elements: [Deposit, Withdrawal, Transfer, Payment] } }
+  - { name: merchant_name, type: string, faker: company }
+  - { name: merchant_category, type: string, faker: random_element, options: { elements: [Retail, Travel, Dining, Health, Utilities, Education] } }
+  - { name: merchant_country, type: string, faker: country }
+  - { name: transaction_currency, type: string, faker: currency_code }
+  - { name: exchange_rate, type: float, faker: pyfloat }
+  - { name: transaction_status, type: string, faker: random_element, options: { elements: [Success, Failed, Pending] } }
+  - { name: risk_score, type: float, faker: pyfloat }
+  - { name: fraud_flag, type: bool, faker: boolean }
+  - { name: login_time, type: datetime, faker: date_time_this_year }
+  - { name: logout_time, type: datetime, faker: date_time_this_year }
+  - { name: session_duration, type: int, faker: random_int, options: { min: 1, max: 7200 } }
+  - { name: device_type, type: string, faker: random_element, options: { elements: [Mobile, Desktop, Tablet] } }
+  - { name: ip_address, type: string, faker: ipv4 }
+  - { name: referral_code, type: string, faker: bothify, options: { text: "REF####" } }
+  - { name: referred_by, type: string, faker: name }
+  - { name: marketing_opt_in, type: bool, faker: boolean }
+  - { name: sms_alerts_enabled, type: bool, faker: boolean }
+  - { name: email_alerts_enabled, type: bool, faker: boolean }
+  - { name: rewards_points, type: int, faker: random_int, options: { min: 0, max: 100000 } }
+  - { name: rewards_status, type: string, faker: random_element, options: { elements: [Silver, Gold, Platinum, Diamond] } }
+  - { name: preferred_language, type: string, faker: language_name }
+  - { name: education_level, type: string, faker: random_element, options: { elements: [High School, Bachelor, Master, PhD] } }
+  - { name: university_attended, type: string, faker: company }
+  - { name: graduation_year, type: int, faker: year }
+  - { name: housing_type, type: string, faker: random_element, options: { elements: [Owned, Rented, Mortgaged, Company Provided] } }
+  - { name: number_of_dependents, type: int, faker: random_int, options: { min: 0, max: 5 } }
+  - { name: residential_status, type: string, faker: random_element, options: { elements: [Resident, Non-Resident] } }
+  - { name: utility_provider, type: string, faker: company }
+  - { name: tax_id, type: string, faker: bothify, options: { text: "TAX########" } }
+  - { name: salary_account, type: bool, faker: boolean }
+  - { name: salary_payment_frequency, type: string, faker: random_element, options: { elements: [Monthly, Bi-Weekly, Weekly] } }
+  - { name: employment_start_date, type: date, faker: date_this_decade }
+  - { name: employment_end_date, type: date, faker: date_this_decade }
+  - { name: loan_status, type: string, faker: random_element, options: { elements: [Active, Closed, Defaulted] } }
+  - { name: loan_amount, type: float, faker: pyfloat }
+  - { name: loan_type, type: string, faker: random_element, options: [Personal, Home, Auto, Education, Credit Card] }
+  - { name: repayment_schedule, type: string, faker: random_element, options: [Monthly, Quarterly, Bi-Annually, Annually] }
+  - { name: missed_payments, type: int, faker: random_int, options: { min: 0, max: 12 } }
+  - { name: pension_contribution, type: float, faker: pyfloat }
+  - { name: insurance_policy_number, type: string, faker: bothify, options: { text: "INS##########" } }
+  - { name: insurance_type, type: string, faker: random_element, options: [Health, Life, Auto, Travel] }
+  - { name: insurance_expiry_date, type: date, faker: date_this_decade }
+  - { name: crypto_wallet, type: bool, faker: boolean }
+  - { name: crypto_balance, type: float, faker: pyfloat }
+  - { name: savings_goal, type: float, faker: pyfloat }
+  - { name: goal_completion_percentage, type: float, faker: pyfloat }
+  - { name: rent_payment, type: float, faker: pyfloat }
+  - { name: monthly_expenses, type: float, faker: pyfloat }
+  - { name: source_system, type: string, faker: random_element, options: [CoreBanking, MobileApp, WebPortal, ATM] }
+  - { name: blacklist_status, type: bool, faker: boolean }
+  - { name: record_created_at, type: datetime, faker: date_time_this_year }
+  - { name: record_updated_at, type: datetime, faker: date_time_this_year }
+
