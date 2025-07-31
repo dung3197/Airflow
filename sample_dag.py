@@ -121,3 +121,29 @@ with DAG(
         python_callable=run_task,
         provide_context=True
     )
+
+
+
+
+
+
+
+
+
+
+
+
+
+from airflow.operators.trigger_dagrun import TriggerDagRunOperator
+
+def get_dag1_conf(context, dag_run_obj):
+    conf = context['dag_run'].conf or {}
+    dag_run_obj.payload = conf.get('dag1_conf', {})
+    return dag_run_obj
+
+task1 = TriggerDagRunOperator(
+    task_id="trigger_dag1",
+    trigger_dag_id="dag1",
+    execution_date="{{ execution_date }}",  # optional, can omit if not needed
+    python_callable=get_dag1_conf
+)
