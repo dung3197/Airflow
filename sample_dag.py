@@ -380,3 +380,85 @@ with DAG(
     )
 
     verify >> [task1, task2]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+from airflow import DAG
+from airflow.operators.python import BranchPythonOperator
+from airflow.operators.dagrun_operator import TriggerDagRunOperator
+from airflow.operators.empty import EmptyOperator
+from airflow.utils.dates import days_ago
+from airflow.models import Variable
+
+def decide_branch(**context):
+    conf = Variable.get("manual_rerun", default_var='{}', deserialize_json=True)
+    rerun = conf.get("rerun_dag", None)
+
+    if rerun == "dag1":
+        return "trigger_dag1"
+    elif rerun == "dag2":
+        return "trigger_dag2"
+    else:
+        return "end"  # fallback if nothing to run
+
+with DAG(
+    dag_id="dag_master",
+    start_date=days_ago(1),
+    schedule_interval=None,
+    catchup=False
+) as dag:
+
+    decide = BranchPythonOperator(
+        task_id="decide_which_dag_to_trigger",
+        python_callable=decide_branch,
+        provide_context=True
+    )
+
+    trigger_dag1 = TriggerDagRunOperator(
+        task_id="trigger_dag1",
+        trigger_dag_id="dag1",
+        conf="{{ var.value.manual_rerun | fromjson | default({}) }}",
+        wait_for_completion=False
+    )
+
+    trigger_dag2 = TriggerDagRunOperator(
+        task_id="trigger_dag2",
+        trigger_dag_id="dag2",
+        conf="{{ var.value.manual_rerun | fromjson | default({}) }}",
+        wait_for_completion=False
+    )
+
+    end = EmptyOperator(task_id="end")
+
+    # DAG dependencies
+    decide >> [trigger_dag1, trigger_dag2, end]
+    trigger_dag1 >> end
+    trigger_dag2 >> end
