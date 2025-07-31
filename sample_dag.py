@@ -147,3 +147,148 @@ task1 = TriggerDagRunOperator(
     execution_date="{{ execution_date }}",  # optional, can omit if not needed
     python_callable=get_dag1_conf
 )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+from airflow import DAG
+from airflow.operators.trigger_dagrun import TriggerDagRunOperator
+from airflow.utils.dates import days_ago
+
+with DAG(
+    dag_id="manager_dag",
+    start_date=days_ago(1),
+    schedule_interval=None,
+    catchup=False,
+) as dag:
+
+    trigger_task1 = TriggerDagRunOperator(
+        task_id="trigger_dag1",
+        trigger_dag_id="dag1",
+        conf="{{ dag_run.conf.get('dag1_conf', {}) }}"
+    )
+
+    trigger_task2 = TriggerDagRunOperator(
+        task_id="trigger_dag2",
+        trigger_dag_id="dag2",
+        conf="{{ dag_run.conf.get('dag2_conf', {}) }}"
+    )
+
+    trigger_task3 = TriggerDagRunOperator(
+        task_id="trigger_dag3",
+        trigger_dag_id="dag3",
+        conf="{{ dag_run.conf.get('dag3_conf', {}) }}"
+    )
+
+    trigger_task1 >> trigger_task2 >> trigger_task3
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+from airflow import DAG
+from airflow.operators.python import PythonOperator
+from airflow.operators.trigger_dagrun import TriggerDagRunOperator
+from airflow.utils.dates import days_ago
+
+def extract_dag1_conf(**kwargs):
+    dag1_conf = kwargs['dag_run'].conf.get('dag1_conf', {})
+    kwargs['ti'].xcom_push(key='conf', value=dag1_conf)
+
+with DAG(
+    dag_id='manager_dag',
+    start_date=days_ago(1),
+    schedule_interval=None,
+    catchup=False,
+) as dag:
+
+    prepare_task1 = PythonOperator(
+        task_id='prepare_dag1_conf',
+        python_callable=extract_dag1_conf,
+        provide_context=True
+    )
+
+    trigger_task1 = TriggerDagRunOperator(
+        task_id='trigger_dag1',
+        trigger_dag_id='dag1',
+        conf="{{ ti.xcom_pull(task_ids='prepare_dag1_conf', key='conf') }}"
+    )
+
+    # Repeat for dag2
+    def extract_dag2_conf(**kwargs):
+        dag2_conf = kwargs['dag_run'].conf.get('dag2_conf', {})
+        kwargs['ti'].xcom_push(key='conf', value=dag2_conf)
+
+    prepare_task2 = PythonOperator(
+        task_id='prepare_dag2_conf',
+        python_callable=extract_dag2_conf,
+        provide_context=True
+    )
+
+    trigger_task2 = TriggerDagRunOperator(
+        task_id='trigger_dag2',
+        trigger_dag_id='dag2',
+        conf="{{ ti.xcom_pull(task_ids='prepare_dag2_conf', key='conf') }}"
+    )
+
+    # Repeat for dag3
+    def extract_dag3_conf(**kwargs):
+        dag3_conf = kwargs['dag_run'].conf.get('dag3_conf', {})
+        kwargs['ti'].xcom_push(key='conf', value=dag3_conf)
+
+    prepare_task3 = PythonOperator(
+        task_id='prepare_dag3_conf',
+        python_callable=extract_dag3_conf,
+        provide_context=True
+    )
+
+    trigger_task3 = TriggerDagRunOperator(
+        task_id='trigger_dag3',
+        trigger_dag_id='dag3',
+        conf="{{ ti.xcom_pull(task_ids='prepare_dag3_conf', key='conf') }}"
+    )
+
+    # Set task dependencies
+    prepare_task1 >> trigger_task1 >> prepare_task2 >> trigger_task2 >> prepare_task3 >> trigger_task3
