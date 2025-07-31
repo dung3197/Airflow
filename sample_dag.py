@@ -292,3 +292,91 @@ with DAG(
 
     # Set task dependencies
     prepare_task1 >> trigger_task1 >> prepare_task2 >> trigger_task2 >> prepare_task3 >> trigger_task3
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+from airflow import DAG
+from airflow.operators.python import PythonOperator, ShortCircuitOperator
+from airflow.models import Variable
+from airflow.utils.dates import days_ago
+
+def verify_and_decide(**context):
+    config = Variable.get("manual_rerun", default_var='{}', deserialize_json=True)
+    rerun_task = config.get("rerun_task")
+    params = config.get("params", {})
+
+    # Push to XCom so downstream tasks can access this info
+    context['ti'].xcom_push(key="rerun_task", value=rerun_task)
+    context['ti'].xcom_push(key="params", value=params)
+
+    print(f"Will rerun only task: {rerun_task}, with params: {params}")
+
+def conditional_execute(task_name):
+    def _inner(**context):
+        ti = context["ti"]
+        rerun_task = ti.xcom_pull(task_ids="verify_and_decide", key="rerun_task")
+        params = ti.xcom_pull(task_ids="verify_and_decide", key="params", default={})
+
+        if rerun_task != task_name:
+            print(f"Skipping {task_name} because it's not the target")
+            return False  # ShortCircuit this task
+
+        print(f"Running {task_name} with params: {params}")
+        return True
+    return _inner
+
+with DAG(
+    dag_id="conditional_rerun_dag",
+    start_date=days_ago(1),
+    schedule_interval=None,
+    catchup=False,
+) as dag:
+
+    verify = PythonOperator(
+        task_id="verify_and_decide",
+        python_callable=verify_and_decide,
+        provide_context=True
+    )
+
+    task1 = ShortCircuitOperator(
+        task_id="task1",
+        python_callable=conditional_execute("task1"),
+        provide_context=True
+    )
+
+    task2 = ShortCircuitOperator(
+        task_id="task2",
+        python_callable=conditional_execute("task2"),
+        provide_context=True
+    )
+
+    verify >> [task1, task2]
