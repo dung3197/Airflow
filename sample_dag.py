@@ -541,3 +541,59 @@ with DAG(
 
     # DAG dependency chain
     should_run_task1 >> trigger_dag1 >> should_run_task2 >> trigger_dag2
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+from airflow import DAG
+from airflow.operators.python import PythonOperator
+from airflow.operators.dagrun_operator import TriggerDagRunOperator
+from airflow.utils.dates import days_ago
+from airflow.models import Variable
+
+def build_conf(**context):
+    manual_rerun = Variable.get("manual_rerun", default_var='{}', deserialize_json=True)
+    key1 = manual_rerun.get("key1")
+    params = manual_rerun.get("params", {})
+    return {
+        "key1": key1,
+        "params": params
+    }
+
+with DAG(
+    dag_id="dag_master",
+    start_date=days_ago(1),
+    schedule_interval=None,
+    catchup=False
+) as dag:
+
+    get_conf = PythonOperator(
+        task_id="get_conf",
+        python_callable=build_conf,
+        provide_context=True
+    )
+
+    trigger_dag2 = TriggerDagRunOperator(
+        task_id="trigger_dag2",
+        trigger_dag_id="dag2",
+        conf="{{ task_instance.xcom_pull(task_ids='get_conf') }}",  # <- Now this pulls a real dict
+        wait_for_completion=False
+    )
+
+    get_conf >> trigger_dag2
