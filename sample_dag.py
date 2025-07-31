@@ -462,3 +462,82 @@ with DAG(
     decide >> [trigger_dag1, trigger_dag2, end]
     trigger_dag1 >> end
     trigger_dag2 >> end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+from airflow import DAG
+from airflow.operators.python import PythonOperator, ShortCircuitOperator
+from airflow.operators.dagrun_operator import TriggerDagRunOperator
+from airflow.utils.dates import days_ago
+from airflow.models import Variable
+
+def should_run(task_name):
+    def _fn(**context):
+        conf = Variable.get("manual_rerun", default_var='{}', deserialize_json=True)
+        rerun = conf.get("rerun_dag")
+        if not rerun:
+            return True  # Default: run all
+        if isinstance(rerun, str):
+            return rerun == task_name
+        if isinstance(rerun, list):
+            return task_name in rerun
+        return False
+    return _fn
+
+with DAG(
+    dag_id="dag_master",
+    start_date=days_ago(1),
+    schedule_interval=None,
+    catchup=False
+) as dag:
+
+    should_run_task1 = ShortCircuitOperator(
+        task_id="should_run_task1",
+        python_callable=should_run("dag1"),
+        provide_context=True
+    )
+
+    trigger_dag1 = TriggerDagRunOperator(
+        task_id="trigger_dag1",
+        trigger_dag_id="dag1",
+        conf="{{ var.value.manual_rerun | fromjson | default({}) }}",
+        wait_for_completion=False
+    )
+
+    should_run_task2 = ShortCircuitOperator(
+        task_id="should_run_task2",
+        python_callable=should_run("dag2"),
+        provide_context=True
+    )
+
+    trigger_dag2 = TriggerDagRunOperator(
+        task_id="trigger_dag2",
+        trigger_dag_id="dag2",
+        conf="{{ var.value.manual_rerun | fromjson | default({}) }}",
+        wait_for_completion=False
+    )
+
+    # DAG dependency chain
+    should_run_task1 >> trigger_dag1 >> should_run_task2 >> trigger_dag2
