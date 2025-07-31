@@ -31,3 +31,93 @@ with DAG(
         provide_context=True,
         dag=dag,
     )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+from airflow import DAG
+from airflow.operators.trigger_dagrun import TriggerDagRunOperator
+from airflow.utils.dates import days_ago
+
+with DAG(
+    dag_id="manager_dag",
+    start_date=days_ago(1),
+    schedule_interval=None,
+    catchup=False
+) as dag:
+
+    task1 = TriggerDagRunOperator(
+        task_id="trigger_dag1",
+        trigger_dag_id="dag1",
+        conf="{{ dag_run.conf.get('dag1_conf', {}) }}"
+    )
+
+    task2 = TriggerDagRunOperator(
+        task_id="trigger_dag2",
+        trigger_dag_id="dag2",
+        conf="{{ dag_run.conf.get('dag2_conf', {}) }}"
+    )
+
+    task3 = TriggerDagRunOperator(
+        task_id="trigger_dag3",
+        trigger_dag_id="dag3",
+        conf="{{ dag_run.conf.get('dag3_conf', {}) }}"
+    )
+
+    task1 >> task2 >> task3
+
+
+
+
+{
+  "dag1_conf": {"param_a": "value1"},
+  "dag2_conf": {"param_b": "value2"},
+  "dag3_conf": {"param_c": "value3"}
+}
+
+
+
+
+
+
+
+
+
+
+from airflow import DAG
+from airflow.operators.python import PythonOperator
+from airflow.utils.dates import days_ago
+
+def run_task(**kwargs):
+    conf = kwargs.get('dag_run').conf or {}
+    param = conf.get('param_a', 'default_value')
+    print(f"Running with param_a: {param}")
+
+with DAG(
+    dag_id="dag1",
+    start_date=days_ago(1),
+    schedule_interval=None,
+    catchup=False
+) as dag:
+
+    task = PythonOperator(
+        task_id="print_param",
+        python_callable=run_task,
+        provide_context=True
+    )
