@@ -1,0 +1,116 @@
+{
+  "type": "barchart",
+  "title": "Test Metrics Bar Chart",
+  "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+  },
+  "fieldConfig": {
+    "defaults": {
+      "custom": {
+        "stacking": {
+          "mode": "none"
+        },
+        "axisLabel": "Value",
+        "barAlignment": 0
+      },
+      "color": {
+        "mode": "palette-classic"
+      },
+      "thresholds": {
+        "mode": "absolute",
+        "steps": []
+      }
+    },
+    "overrides": [
+      {
+        "matcher": {
+          "id": "byName",
+          "options": "Source"
+        },
+        "properties": [
+          {
+            "id": "color",
+            "value": {
+              "fixedColor": "#4CAF50",
+              "mode": "fixed"
+            }
+          }
+        ]
+      },
+      {
+        "matcher": {
+          "id": "byName",
+          "options": "Dest"
+        },
+        "properties": [
+          {
+            "id": "color",
+            "value": {
+              "fixedColor": "#2196F3",
+              "mode": "fixed"
+            }
+          }
+        ]
+      },
+      {
+        "matcher": {
+          "id": "byName",
+          "options": "Diff"
+        },
+        "properties": [
+          {
+            "id": "color",
+            "value": {
+              "fixedColor": "#FF9800",
+              "mode": "fixed"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "options": {
+    "tooltip": {
+      "mode": "multi",
+      "sort": "none"
+    },
+    "legend": {
+      "displayMode": "list",
+      "placement": "top",
+      "showLegend": true
+    },
+    "xTickLabelRotation": 0,
+    "xAxis": {
+      "mode": "series",
+      "values": ["key"]
+    },
+    "barWidth": 0.3
+  },
+  "targets": [
+    {
+      "refId": "A",
+      "expr": "test{system=\"BACK\", key=\"count(avg)\"}",
+      "format": "table",
+      "instant": true,
+      "legendFormat": "Source",
+      "valueLabel": "source"
+    },
+    {
+      "refId": "B",
+      "expr": "test{system=\"BACK\", key=\"count(avg)\"}",
+      "format": "table",
+      "instant": true,
+      "legendFormat": "Dest",
+      "valueLabel": "dest"
+    },
+    {
+      "refId": "C",
+      "expr": "test{system=\"BACK\", key=\"count(avg)\"}",
+      "format": "table",
+      "instant": true,
+      "legendFormat": "Diff",
+      "valueLabel": "diff"
+    }
+  ]
+}
