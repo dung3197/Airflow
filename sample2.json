@@ -756,3 +756,17 @@
     }
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+docker exec -it 8ec552e5475c \
+  sed -i 's|https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi9/9/\$basearch/baseos/os|http://dc1-repo-pub.aps.com.vn/repository/yum-proxy-redhat8/content/public/ubi/dist/ubi9/9/x86_64/baseos/os|g' \
+  /etc/yum.repos.d/ubi.repo
