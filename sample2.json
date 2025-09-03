@@ -632,3 +632,127 @@
   "gnetId": 23297,
   "description": "A simple dashboard to monitor Apache Airflow DAGs — track total DAGs, last run status, execution durations, and success/failure trends across instances."
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{
+  "table": {
+    "string": "LOGMINER.CUSTOMER_INFORMATION"
+  },
+  "op_type": {
+    "string": "R"
+  },
+  "op_ts": {
+    "string": "2025-08-19 10:29:25.3284886"
+  },
+  "current_ts": {
+    "string": "2025-08-19 10:59:53.981000"
+  },
+  "pos": {
+    "string": "000000000000018635"
+  },
+  "after": {
+    "row": {
+      "CUSTOMER_ID": {
+        "string": "cbebf044-3ac1-4956-b223-2732b27dcda6"
+      },
+      "ACCOUNT_NUMBER": {
+        "string": "ACC947311"
+      },
+      "FIRST_NAME": {
+        "string": "Douglas"
+      },
+      "LAST_NAME": {
+        "string": "Case"
+      },
+      "EMAIL": {
+        "string": "michael30@example.com"
+      },
+      "PHONE_NUMBER": {
+        "string": "582-696-5439x5148"
+      },
+      "MOBILE_NUMBER": {
+        "string": "001-310-703-3158"
+      },
+      "ADDRESS_LINE1": {
+        "string": "7498 Houston Knolls"
+      },
+      "ADDRESS_LINE2": {
+        "string": "Suite 522"
+      },
+      "CITY": {
+        "string": "Lake Laurenshire"
+      },
+      "STATE": {
+        "string": "North Dakota"
+      },
+      "AML_FLAG": {
+        "string": "YES"
+      },
+      "COMPLIANCE_STATUS": {
+        "string": "COMPLIANT"
+      },
+      "ACCOUNT_BALANCE": {
+        "double": 563511.18
+      },
+      "MARGIN_BALANCE": {
+        "double": 466379.73
+      },
+      "COMMUNICATION_PREFERENCE": {
+        "string": "EMAIL"
+      },
+      "LANGUAGE_PREFERENCE": {
+        "string": "FR"
+      },
+      "EMERGENCY_CONTACT_NAME": {
+        "string": "Kelly Castaneda"
+      },
+      "EMERGENCY_CONTACT_PHONE": {
+        "string": "5180464910"
+      },
+      "RELATIONSHIP_MANAGER": {
+        "string": "Ms. Cassandra Odonnell"
+      },
+      "RISK_SCORE": {
+        "long": 3
+      },
+      "COMPLIANCE_NOTES": {
+        "string": "Short run lead rise cause have much."
+      },
+      "BATCH_ID": {
+        "string": "e7a31d10-a030-46f6-9412-eead348ed70a"
+      }
+    }
+  }
+}
