@@ -52,3 +52,69 @@ with DAG("Simple_TaskGroup_Example",default_args=args) as dag:
 #Parallel run TaskGroup DAG in following dependencies
 start>>Section_1>>end
 start>>Section_2>>end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+from pyspark.sql.functions import col
+
+def extract_fields(df):
+    before_fields = [f.name for f in df.schema["before"].dataType.fields]
+    after_fields = [f.name for f in df.schema["after"].dataType.fields]
+
+    # fields only in before
+    before_only = set(before_fields) - set(after_fields)
+
+    # fields in after (all, including nulls)
+    after_all = after_fields
+
+    # build expressions
+    select_exprs = []
+
+    # add before-only fields
+    for f in before_only:
+        select_exprs.append(col(f"before.{f}").alias(f))
+
+    # add after fields (including nulls)
+    for f in after_all:
+        select_exprs.append(col(f"after.{f}").alias(f))
+
+    return df.select(*select_exprs)
