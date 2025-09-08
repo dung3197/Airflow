@@ -94,27 +94,24 @@ start>>Section_2>>end
 
 
 
-from pyspark.sql.functions import col
+from pyspark.sql.functions import col, when, lit
 
-def extract_fields(df):
+def merge_before_after(df):
     before_fields = [f.name for f in df.schema["before"].dataType.fields]
     after_fields = [f.name for f in df.schema["after"].dataType.fields]
 
-    # fields only in before
-    before_only = set(before_fields) - set(after_fields)
-
-    # fields in after (all, including nulls)
-    after_all = after_fields
-
-    # build expressions
+    all_fields = set(before_fields).union(set(after_fields))
     select_exprs = []
 
-    # add before-only fields
-    for f in before_only:
-        select_exprs.append(col(f"before.{f}").alias(f))
-
-    # add after fields (including nulls)
-    for f in after_all:
-        select_exprs.append(col(f"after.{f}").alias(f))
+    for f in all_fields:
+        # if after has the field, take it (even if null) else fallback to before
+        if f in after_fields:
+            select_exprs.append(
+                when(col(f"after.{f}").isNotNull() | col(f"after").getField(f).isNull(),
+                     col(f"after.{f}")
+                ).otherwise(col(f"before.{f}")).alias(f)
+            )
+        else:
+            select_exprs.append(col(f"before.{f}").alias(f))
 
     return df.select(*select_exprs)
