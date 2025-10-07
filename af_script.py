@@ -51,3 +51,34 @@ def monitor_loop():
 
 # --- Start Monitoring ---
 monitor_loop()
+
+
+
+
+
+
+
+
+
+
+
+from pyspark.sql.functions import col
+
+def get_final_values(ogg_df, op, business_fields):
+    if op == "I" or op == "U" or op == "R":
+        mapping = {f"after.{f}": f for f in business_fields}
+    elif op == "D":
+        mapping = {f"before.{f}": f for f in business_fields}
+    else:
+        return ogg_df
+
+    # Build select expressions for all fields
+    select_exprs = [col(src).alias(dest) for src, dest in mapping.items()]
+
+    # Keep original columns if needed
+    other_cols = [c for c in ogg_df.columns if not (c.startswith("before.") or c.startswith("after."))]
+    select_exprs.extend([col(c) for c in other_cols])
+
+    result_df = ogg_df.select(*select_exprs)
+    print("Finish get final values")
+    return result_df
