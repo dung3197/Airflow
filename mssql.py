@@ -79,4 +79,91 @@ def random_customer_data():
         fake.street_address(),
         fake.city(),
         fake.country(),
-        random.choice
+        random.choice([0, 1]),
+        random.randint(300, 900),
+        round(random.uniform(10, 50000), 2),
+        fake.date_time_between(start_date="-200d", end_date="now"),
+        created_at,
+        updated_at,
+        random.choice(["Bronze", "Silver", "Gold", "Platinum"]),
+        fake.job(),
+        fake.sentence(nb_words=6),
+        fake.bothify(text="REF####")
+    )
+
+
+# ---------------------------------------------------
+# INSERT RECORDS
+# ---------------------------------------------------
+def insert_records(cursor, num_records: int):
+    insert_sql = f"""
+    INSERT INTO {TABLE_NAME} (
+        fullname,
+        gender,
+        birth_date,
+        join_datetime,
+        email,
+        phone_number,
+        address_line,
+        city,
+        country,
+        is_active,
+        credit_score,
+        balance_amount,
+        last_login,
+        created_at,
+        updated_at,
+        membership_level,
+        occupation,
+        notes,
+        referral_code
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+    """
+
+    for _ in range(num_records):
+        cursor.execute(insert_sql, random_customer_data())
+
+
+# ---------------------------------------------------
+# HÀM CHÍNH: TẠO BẢNG / GHI THÊM RECORD
+# ---------------------------------------------------
+def generate_customer_data(drop_table="no", num_records=1000):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    # Kiểm tra bảng đã tồn tại chưa
+    check_sql = f"""
+    SELECT 1 FROM sysobjects WHERE name = '{TABLE_NAME}' AND xtype = 'U'
+    """
+    cursor.execute(check_sql)
+    table_exists = cursor.fetchone() is not None
+
+    # Nếu bảng tồn tại và được yêu cầu drop
+    if table_exists and drop_table.lower() == "yes":
+        print(f"Dropping existing table '{TABLE_NAME}'...")
+        cursor.execute(f"DROP TABLE {TABLE_NAME}")
+        conn.commit()
+        table_exists = False
+
+    # Tạo bảng nếu chưa có
+    if not table_exists:
+        print(f"Creating table '{TABLE_NAME}'...")
+        create_table(cursor)
+        conn.commit()
+
+    # Ghi thêm dữ liệu
+    print(f"Inserting {num_records} new records...")
+    insert_records(cursor, num_records)
+
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    print(f"Done! {num_records} records inserted into '{TABLE_NAME}'.")
+
+
+# ---------------------------------------------------
+# CHẠY THỬ
+# ---------------------------------------------------
+if __name__ == "__main__":
+    generate_customer_data(drop_table="no", num_records=1000)
