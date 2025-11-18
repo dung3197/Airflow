@@ -1,155 +1,100 @@
-import pyodbc
-from faker import Faker
 import random
+import string
+import pyodbc
 from datetime import datetime
-import json
-import os
 
-# ---------------------------------------------------
-# CONFIG DATABASE
-# ---------------------------------------------------
-SERVER = "localhost"
-DATABASE = "your_database"
-USERNAME = "sa"
-PASSWORD = "your_password"
-TABLE_NAME = "customer_information"
-
-fake = Faker("en_US")
-
+# ==========================
+# CẤU HÌNH KẾT NỐI DATABASE
+# ==========================
+conn_str = (
+    "DRIVER={ODBC Driver 17 for SQL Server};"
+    "SERVER=localhost;"
+    "DATABASE=your_database;"
+    "UID=sa;"
+    "PWD=your_password;"
+)
 
 def get_connection():
-    return pyodbc.connect(
-        f"DRIVER={{ODBC Driver 17 for SQL Server}};"
-        f"SERVER={SERVER};DATABASE={DATABASE};UID={USERNAME};PWD={PASSWORD}"
-    )
+    return pyodbc.connect(conn_str)
 
 
-# ---------------------------------------------------
-# LOGGING
-# ---------------------------------------------------
-def append_log(file_name, data):
-    if os.path.exists(file_name):
-        with open(file_name, "r", encoding="utf-8") as f:
-            logs = json.load(f)
-    else:
-        logs = []
-
-    logs.append(data)
-
-    with open(file_name, "w", encoding="utf-8") as f:
-        json.dump(logs, f, indent=4, ensure_ascii=False)
+# ==========================
+# HÀM RANDOM PHONE
+# ==========================
+def random_phone():
+    return "09" + ''.join(random.choices("0123456789", k=8))
 
 
-# ---------------------------------------------------
-# LẤY DANH SÁCH ID NGẪU NHIÊN
-# ---------------------------------------------------
-def get_random_ids(cursor, limit):
-    sql = f"SELECT TOP {limit} customer_id FROM {TABLE_NAME} ORDER BY NEWID()"
-    cursor.execute(sql)
-    return [row[0] for row in cursor.fetchall()]
-
-
-# ---------------------------------------------------
-# LẤY FULL RECORD THEO ID
-# ---------------------------------------------------
-def get_record_by_id(cursor, cid):
-    cursor.execute(
-        f"SELECT * FROM {TABLE_NAME} WHERE customer_id = ?", cid
-    )
-    row = cursor.fetchone()
-    if not row:
-        return None
-
-    columns = [column[0] for column in cursor.description]
-    return dict(zip(columns, row))
-
-
-# ---------------------------------------------------
-# UPDATE NGẪU NHIÊN 10 RECORD + LOG
-# ---------------------------------------------------
-def update_random_records():
+# ==========================
+# UPDATE 10 RECORD
+# ==========================
+def update_random_records(log_file):
     conn = get_connection()
     cursor = conn.cursor()
 
-    random_ids = get_random_ids(cursor, 10)
+    cursor.execute("SELECT TOP 10 cust_id FROM customer_information ORDER BY NEWID()")
+    rows = cursor.fetchall()
 
-    update_sql = f"""
-        UPDATE {TABLE_NAME}
-        SET fullname = ?, city = ?, country = ?, updated_at = ?
-        WHERE customer_id = ?
-    """
+    with open(log_file, "a", encoding="utf-8") as f:
+        f.write("\n===== UPDATE LOG =====\n")
 
-    for cid in random_ids:
-        before = get_record_by_id(cursor, cid)
+        for row in rows:
+            cust_id = row[0]
+            new_phone = random_phone()
+            new_balance = round(random.uniform(1000, 99999), 2)
+            new_time = datetime.now()
 
-        new_fullname = fake.name()
-        new_city = fake.city()
-        new_country = fake.country()
-        new_updated_at = datetime.now()
+            cursor.execute("""
+                UPDATE customer_information
+                SET phone=?, balance=?, last_update=?
+                WHERE cust_id=?
+            """, (new_phone, new_balance, new_time, cust_id))
 
-        cursor.execute(
-            update_sql,
-            new_fullname,
-            new_city,
-            new_country,
-            new_updated_at,
-            cid
-        )
-
-        after = before.copy()
-        after["fullname"] = new_fullname
-        after["city"] = new_city
-        after["country"] = new_country
-        after["updated_at"] = new_updated_at
-
-        # Ghi log chi tiết
-        append_log("update_log.json", {
-            "record_id": cid,
-            "before": before,
-            "after": after,
-            "update_time": str(datetime.now())
-        })
+            f.write(
+                f"[UPDATE] cust_id={cust_id} | "
+                f"phone={new_phone} | "
+                f"balance={new_balance} | "
+                f"last_update={new_time}\n"
+            )
 
     conn.commit()
-    cursor.close()
     conn.close()
+    print("✔ Updated 10 random records.")
 
-    print("Updated 10 records + logged to update_log.json")
 
-
-# ---------------------------------------------------
-# DELETE NGẪU NHIÊN 2 RECORD + LOG
-# ---------------------------------------------------
-def delete_random_records():
+# ==========================
+# DELETE 2 RECORD
+# ==========================
+def delete_random_records(log_file):
     conn = get_connection()
     cursor = conn.cursor()
 
-    random_ids = get_random_ids(cursor, 2)
+    cursor.execute("SELECT TOP 2 cust_id FROM customer_information ORDER BY NEWID()")
+    rows = cursor.fetchall()
 
-    delete_sql = f"DELETE FROM {TABLE_NAME} WHERE customer_id = ?"
+    with open(log_file, "a", encoding="utf-8") as f:
+        f.write("\n===== DELETE LOG =====\n")
 
-    for cid in random_ids:
-        before = get_record_by_id(cursor, cid)
+        for row in rows:
+            cust_id = row[0]
 
-        cursor.execute(delete_sql, cid)
+            # Ghi log trước khi xóa
+            f.write(f"[DELETE] cust_id={cust_id}\n")
 
-        # Ghi log chi tiết
-        append_log("delete_log.json", {
-            "record_id": cid,
-            "deleted_data": before,
-            "delete_time": str(datetime.now())
-        })
+            cursor.execute("DELETE FROM customer_information WHERE cust_id=?", cust_id)
 
     conn.commit()
-    cursor.close()
     conn.close()
+    print("✔ Deleted 2 random records.")
 
-    print("Deleted 2 records + logged to delete_log.json")
 
-
-# ---------------------------------------------------
-# CHẠY THỬ
-# ---------------------------------------------------
+# ==========================
+# MAIN
+# ==========================
 if __name__ == "__main__":
-    update_random_records()
-    delete_random_records()
+    LOG_FILE = "customer_information_log.txt"
+
+    update_random_records(LOG_FILE)
+    delete_random_records(LOG_FILE)
+
+    print(f"✔ Log saved to: {LOG_FILE}")
