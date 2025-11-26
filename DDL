@@ -1,0 +1,112 @@
+✅ Cách tốt nhất: Auto-recreate capture instance + Auto-trigger incremental snapshot
+
+Debezium 2.0+ hỗ trợ incremental snapshot, và SQL Server CDC hoàn toàn cho phép bạn enable/disable table CDC bằng procedure.
+
+Bạn sẽ tự động hóa toàn bộ vòng:
+
+Detect schema change → recreate capture instance → trigger incremental snapshot
+
+📌 Kiến trúc tổng thể
+
+Sử dụng DDL trigger → phát hiện ALTER TABLE ADD COLUMN
+
+Trigger ghi sự kiện vào một bảng ALETS (log table)
+
+Một SQL Agent Job chạy mỗi X giây:
+
+Kiểm tra log
+
+Disable capture instance cũ
+
+Enable capture instance mới
+
+Insert signal vào signaling table của Debezium để trigger incremental snapshot
+
+Kết quả: Kafka nhận đủ schema + đủ dữ liệu, không mất record.
+
+🧩 1. Tạo Trigger DDL phát hiện thay đổi schema
+CREATE TRIGGER trg_detect_table_changes
+ON DATABASE
+FOR ALTER_TABLE
+AS
+BEGIN
+    INSERT INTO dbo.schema_change_log(table_name, change_time)
+    SELECT EVENTDATA().value('(/EVENT_INSTANCE/ObjectName)[1]', 'sysname'),
+           GETDATE();
+END
+
+
+Bảng log:
+
+CREATE TABLE dbo.schema_change_log(
+    id INT IDENTITY PRIMARY KEY,
+    table_name sysname,
+    change_time DATETIME DEFAULT GETDATE(),
+    processed BIT DEFAULT 0
+);
+
+🧩 2. Job tự động recreate capture instance
+
+Nội dung job (T-SQL):
+
+DECLARE @table sysname;
+
+SELECT TOP 1 @table = table_name
+FROM dbo.schema_change_log
+WHERE processed = 0;
+
+IF @table IS NOT NULL
+BEGIN
+    DECLARE @schema sysname = 'dbo';
+
+    -- Disable CDC for table
+    EXEC sys.sp_cdc_disable_table 
+        @source_schema = @schema,
+        @source_name   = @table;
+
+    -- Re-enable CDC for table (capture instance mới)
+    EXEC sys.sp_cdc_enable_table 
+        @source_schema = @schema,
+        @source_name   = @table,
+        @role_name     = NULL,
+        @supports_net_changes = 0;
+
+    -- Mark processed
+    UPDATE dbo.schema_change_log
+    SET processed = 1
+    WHERE table_name = @table;
+END
+
+
+Bạn có thể chạy job mỗi 10 giây / 1 phút tùy nhu cầu.
+
+🧩 3. Gửi signal cho Debezium để chạy lại incremental snapshot
+
+Debezium cần signaling table:
+
+CREATE TABLE dbo.debezium_signal (
+  id VARCHAR(64),
+  type VARCHAR(32),
+  data VARCHAR(max)
+);
+
+
+Trong job SQL Agent, thêm đoạn sau sau khi recreate capture instance:
+
+INSERT INTO dbo.debezium_signal (id, type, data)
+VALUES (
+   CONCAT(@table, '_snap_', CONVERT(VARCHAR, GETDATE(), 112)),
+   'execute-snapshot',
+   '{"data-collections": ["dbo.' + @table + '"] }'
+);
+
+
+Debezium 2.4 sẽ tự động:
+
+Detect schema mới
+
+Snapshot lại toàn bộ bảng (incremental snapshot)
+
+Liên kết CDC mới
+
+Đẩy đầy đủ record (kể cả update trước khi recreate capture instance)
