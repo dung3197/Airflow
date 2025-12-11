@@ -7,8 +7,7 @@ import org.apache.kafka.connect.errors.DataException;
 import org.apache.kafka.connect.transforms.Transformation;
 import org.apache.kafka.connect.transforms.util.SimpleConfig;
 
-import java.time.Instant;
-import java.time.OffsetDateTime;
+import java.time.*;
 import java.time.format.DateTimeParseException;
 import java.util.*;
 
@@ -99,7 +98,7 @@ public class DateTimeOffsetToTimestamp<R extends ConnectRecord<R>> implements Tr
                 return mapBuilder.build();
 
             default:
-                return original; // primitive / logical không đổi
+                return original;
         }
     }
 
@@ -124,7 +123,7 @@ public class DateTimeOffsetToTimestamp<R extends ConnectRecord<R>> implements Tr
     }
 
     // ======================================================================
-    // STRUCT REBUILD — DÙNG NEW SCHEMA + GIÁ TRỊ ĐÃ CONVERT
+    // STRUCT REBUILD — APPLY VALUE CONVERSION
     // ======================================================================
     private Struct rebuildStruct(Struct originalValue, Schema originalSchema, Schema newSchema) {
         if (originalValue == null) return null;
@@ -141,7 +140,7 @@ public class DateTimeOffsetToTimestamp<R extends ConnectRecord<R>> implements Tr
                 continue;
             }
 
-            // datetimeoffset (ZonedTimestamp) → Kafka Timestamp (java.util.Date)
+            // ONLY PROCESS datetimeoffset fields
             if (convertAll && isZonedTimestamp(originalFieldSchema)) {
                 result.put(f.name(), convertToTimestampDate(value));
                 continue;
@@ -158,14 +157,14 @@ public class DateTimeOffsetToTimestamp<R extends ConnectRecord<R>> implements Tr
                 case ARRAY:
                     List<?> list = (List<?>) value;
                     List<Object> newArr = new ArrayList<>(list.size());
-                    newArr.addAll(list); // giữ nguyên element (kể cả null)
+                    newArr.addAll(list);
                     result.put(f.name(), newArr);
                     break;
 
                 case MAP:
                     Map<?, ?> map = (Map<?, ?>) value;
                     Map<Object, Object> newMap = new HashMap<>();
-                    newMap.putAll(map); // giữ nguyên key/value
+                    newMap.putAll(map);
                     result.put(f.name(), newMap);
                     break;
 
@@ -187,8 +186,17 @@ public class DateTimeOffsetToTimestamp<R extends ConnectRecord<R>> implements Tr
     }
 
     /**
-     * Convert various representations of datetimeoffset to java.util.Date,
-     * which is the expected Java type for Kafka Connect logical Timestamp.
+     * Convert datetimeoffset → Kafka Timestamp nhưng GIỮ NGUYÊN GIÁ TRỊ GIỜ.
+     *
+     * Logic:
+     * 1. Parse datetimeoffset thành OffsetDateTime
+     * 2. Lấy LocalDateTime (bỏ offset đi)
+     * 3. Interpret LocalDateTime này như UTC
+     * 4. Convert thành epoch milli
+     *
+     * Kết quả:
+     * - Timestamp trong Kafka hiển thị y HỆT giá trị trong DB
+     * - Không bị trừ 7 tiếng nữa
      */
     private java.util.Date convertToTimestampDate(Object value) {
         if (value == null) return null;
@@ -203,17 +211,18 @@ public class DateTimeOffsetToTimestamp<R extends ConnectRecord<R>> implements Tr
 
         String txt = value.toString();
 
-        // 1) Try OffsetDateTime (2025-07-07T05:39:21.253742+07:00)
         try {
+            // Parse datetimeoffset → có offset
             OffsetDateTime odt = OffsetDateTime.parse(txt);
-            return java.util.Date.from(odt.toInstant());
-        } catch (DateTimeParseException ignored) {
-        }
 
-        // 2) Try Instant (2025-07-07T05:39:21.253742Z)
-        try {
-            Instant instant = Instant.parse(txt);
-            return java.util.Date.from(instant);
+            // Lấy local datetime (giờ phút giây đúng như DB nhập)
+            LocalDateTime local = odt.toLocalDateTime();
+
+            // Diễn giải local datetime này như UTC để ra epoch
+            Instant reinterpretAsUTC = local.atZone(ZoneOffset.UTC).toInstant();
+
+            return java.util.Date.from(reinterpretAsUTC);
+
         } catch (DateTimeParseException e) {
             throw new DataException("Failed to parse datetimeoffset: " + txt, e);
         }
