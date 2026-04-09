@@ -137,15 +137,28 @@ public class MinioVirtualHostTest {
     }
 
     private static void ensureBucketExists(S3Client s3, String bucket) {
-        try {
-            s3.headBucket(HeadBucketRequest.builder().bucket(bucket).build());
-            System.out.println("Bucket already exists: " + bucket);
-        } catch (NoSuchBucketException | software.amazon.awssdk.services.s3.model.S3Exception e) {
-            // If headBucket fails because the bucket does not exist, create it.
-            // For a local test, this is fine.
-            System.out.println("Creating bucket: " + bucket);
+    try {
+        s3.headBucket(HeadBucketRequest.builder().bucket(bucket).build());
+        System.out.println("Bucket already exists and is reachable: " + bucket);
+    } catch (S3Exception e) {
+        int code = e.statusCode();
+        System.out.println("headBucket failed with HTTP status: " + code);
+
+        // Only try to create when it is really a not-found situation.
+        if (code == 404) {
+            System.out.println("Bucket not found. Creating bucket: " + bucket);
             s3.createBucket(CreateBucketRequest.builder().bucket(bucket).build());
+            return;
         }
+
+        // 400/403 usually mean misrouting, auth, or endpoint/addressing issue.
+        throw new RuntimeException(
+                "Bucket check failed, but not because the bucket is missing. " +
+                "HTTP status = " + code +
+                ". Check MINIO_DOMAIN, DNS for bucket subdomain, credentials, and virtual-host addressing.",
+                e
+        );
+    }
     }
 
     private static void uploadObject(S3Client s3, String bucket, String key, String content) {
