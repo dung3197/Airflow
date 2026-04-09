@@ -1,0 +1,190 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+         http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.example</groupId>
+    <artifactId>minio-vhost-test</artifactId>
+    <version>1.0-SNAPSHOT</version>
+
+    <properties>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <aws.sdk.version>2.31.58</aws.sdk.version>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>s3</artifactId>
+            <version>${aws.sdk.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <version>2.0.17</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
+            </plugin>
+
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.5.0</version>
+                <configuration>
+                    <mainClass>com.example.MinioVirtualHostTest</mainClass>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+
+
+
+
+
+
+
+
+
+
+package com.example;
+
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
+import software.amazon.awssdk.core.interceptor.Context;
+import software.amazon.awssdk.core.interceptor.ExecutionAttributes;
+import software.amazon.awssdk.core.interceptor.ExecutionInterceptor;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.http.SdkHttpRequest;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.S3Configuration;
+import software.amazon.awssdk.services.s3.model.CreateBucketRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
+import software.amazon.awssdk.services.s3.model.NoSuchBucketException;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
+public class MinioVirtualHostTest {
+
+    // Change these if needed
+    private static final String ENDPOINT = "http://minio.test:9000";
+    private static final String ACCESS_KEY = "minioadmin";
+    private static final String SECRET_KEY = "minioadmin";
+    private static final Region REGION = Region.US_EAST_1;
+
+    // Keep bucket DNS-compatible for virtual-host style
+    private static final String BUCKET = "testbucket";
+    private static final String OBJECT_KEY = "hello.txt";
+    private static final String CONTENT = "Hello from AWS Java SDK via virtual-host-style request to MinIO.";
+
+    public static void main(String[] args) throws Exception {
+        S3Client s3 = buildVirtualHostClient();
+
+        try {
+            ensureBucketExists(s3, BUCKET);
+            uploadObject(s3, BUCKET, OBJECT_KEY, CONTENT);
+            downloadObject(s3, BUCKET, OBJECT_KEY);
+            printExpectedVirtualHostUrl(BUCKET, OBJECT_KEY);
+            System.out.println("\nSUCCESS: virtual-host-style test completed.");
+        } finally {
+            s3.close();
+        }
+    }
+
+    private static S3Client buildVirtualHostClient() {
+        AwsBasicCredentials creds = AwsBasicCredentials.create(ACCESS_KEY, SECRET_KEY);
+
+        ExecutionInterceptor interceptor = new ExecutionInterceptor() {
+            @Override
+            public void beforeTransmission(Context.BeforeTransmission context,
+                                           ExecutionAttributes executionAttributes) {
+                SdkHttpRequest req = context.httpRequest();
+                System.out.println("HTTP " + req.method() + " " + req.getUri());
+                System.out.println("Host header: " + req.host());
+                System.out.println("--------------------------------------------------");
+            }
+        };
+
+        return S3Client.builder()
+                .endpointOverride(URI.create(ENDPOINT))
+                .region(REGION)
+                .credentialsProvider(StaticCredentialsProvider.create(creds))
+                .serviceConfiguration(S3Configuration.builder()
+                        // critical: do NOT force path-style
+                        .pathStyleAccessEnabled(false)
+                        .build())
+                .overrideConfiguration(ClientOverrideConfiguration.builder()
+                        .addExecutionInterceptor(interceptor)
+                        .build())
+                .build();
+    }
+
+    private static void ensureBucketExists(S3Client s3, String bucket) {
+        try {
+            s3.headBucket(HeadBucketRequest.builder().bucket(bucket).build());
+            System.out.println("Bucket already exists: " + bucket);
+        } catch (NoSuchBucketException | software.amazon.awssdk.services.s3.model.S3Exception e) {
+            // If headBucket fails because the bucket does not exist, create it.
+            // For a local test, this is fine.
+            System.out.println("Creating bucket: " + bucket);
+            s3.createBucket(CreateBucketRequest.builder().bucket(bucket).build());
+        }
+    }
+
+    private static void uploadObject(S3Client s3, String bucket, String key, String content) {
+        System.out.println("Uploading object...");
+        s3.putObject(
+                PutObjectRequest.builder()
+                        .bucket(bucket)
+                        .key(key)
+                        .contentType("text/plain")
+                        .build(),
+                RequestBody.fromString(content, StandardCharsets.UTF_8)
+        );
+        System.out.println("Upload done.");
+    }
+
+    private static void downloadObject(S3Client s3, String bucket, String key) throws Exception {
+        System.out.println("Downloading object...");
+        Path tempFile = Files.createTempFile("minio-vhost-", ".txt");
+
+        s3.getObject(
+                GetObjectRequest.builder()
+                        .bucket(bucket)
+                        .key(key)
+                        .build(),
+                tempFile
+        );
+
+        String downloaded = Files.readString(tempFile, StandardCharsets.UTF_8);
+        System.out.println("Downloaded content:");
+        System.out.println(downloaded);
+
+        if (!CONTENT.equals(downloaded)) {
+            throw new IllegalStateException("Downloaded content does not match uploaded content.");
+        }
+    }
+
+    private static void printExpectedVirtualHostUrl(String bucket, String key) {
+        System.out.println("\nExpected virtual-host-style URL:");
+        System.out.println("http://" + bucket + ".minio.test:9000/" + key);
+        System.out.println("\nIf the interceptor output shows that host/URI shape, virtual-host-style is working.");
+    }
+}
