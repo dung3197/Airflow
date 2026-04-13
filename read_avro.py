@@ -112,3 +112,80 @@ df = (
 
 df.show(truncate=False)
 df.printSchema()
+
+
+
+
+
+
+
+def handle_map_key_as_column(nested_df, map_cols):
+    """
+    Flattens DataFrame columns containing map-type elements by separating keys as individual columns.
+    """
+    original_cols = [col_name for col_name in nested_df.columns]
+    for c in map_cols:
+        keys_df = nested_df.select(explode(map_keys(col(c)))).distinct()
+        keys = list(map(lambda row: row[0], keys_df.collect()))
+        key_cols = list(map(lambda f: col(c).getItem(f).alias(str(f)), keys))
+        nested_df = nested_df.select([col_name for col_name in original_cols if col_name != c] + key_cols)
+    nested_df = nested_df.select([col_name for col_name in nested_df.columns if col_name not in map_cols])
+    return nested_df
+
+
+
+def handle_map(nested_df, map_cols):
+    """
+    Flattens DataFrame columns containing map-type elements by exploding map elements into separate rows.
+    """
+    original_cols = [col_name for col_name in nested_df.columns]
+    for c in map_cols:
+        not_map_cols = [col_name for col_name in nested_df.columns if col_name not in map_cols]
+        nested_df = nested_df.select(*not_map_cols, explode(c).alias(f"{c}_key", f"{c}_value"))
+    nested_df = nested_df.select([col_name for col_name in nested_df.columns if col_name not in map_cols])
+    return nested_df
+
+
+    
+def handle_struct(df, struct_cols):
+    """
+    Flattens DataFrame columns containing struct-type elements by expanding nested fields as individual columns.
+    """
+    flat_cols = [col(c) for c in df.columns if c not in struct_cols]
+    struct_col_expressions = []
+    for i in struct_cols:
+        projected_df = df.select(i + ".*")
+        for c in projected_df.columns:
+            struct_col_expressions.append(col(f"{i}.{c}").alias(f"{i}_{c}"))
+    return df.select(flat_cols + struct_col_expressions)
+
+def handle_array(df, array_cols):
+    """
+    Flattens DataFrame columns containing array-type elements by exploding the array into separate rows.
+    """
+    for c in array_cols:
+        df = df.withColumn(c, explode(c))
+    return df
+
+def flatten_df(df):
+    """
+    Dynamically flattens nested DataFrame structures.
+    """
+    struct_cols = [c[0] for c in df.dtypes if c[1][:6] == "struct"]
+    array_cols = [c[0] for c in df.dtypes if c[1][:5] == "array"]
+    map_cols = [c[0] for c in df.dtypes if c[1][:3] == "map"]
+
+    while len(array_cols) > 0 or len(struct_cols) > 0 or len(map_cols) > 0:
+        if array_cols:
+            df = handle_array(df, array_cols)
+        if struct_cols:
+            df = handle_struct(df, struct_cols)
+        if map_cols:
+            df = handle_map_key_as_column(df, map_cols)
+            #df = handle_map(df, map_cols)
+
+        array_cols = [c[0] for c in df.dtypes if c[1][:5] == "array"]
+        struct_cols = [c[0] for c in df.dtypes if c[1][:6] == "struct"]
+        map_cols = [c[0] for c in df.dtypes if c[1][:3] == "map"]
+
+    return df
