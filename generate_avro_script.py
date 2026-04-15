@@ -19,6 +19,7 @@ OUTPUT_DIR = Path("output")
 OUTPUT_FILE = OUTPUT_DIR / "ogg_customer_events.avro"
 LOG_FILE = OUTPUT_DIR / "ogg_customer_events.log"
 
+# Requirement: generated Avro file must be at least 50 MB
 TARGET_FILE_SIZE_MB = 50
 TARGET_FILE_SIZE_BYTES = TARGET_FILE_SIZE_MB * 1024 * 1024
 
@@ -30,6 +31,10 @@ TABLE_NAME = "STOCK.CUSTOMER"
 # ============================================================
 
 def setup_logger(log_file: Path) -> logging.Logger:
+    """
+    Configure file-based logger.
+    A log entry is appended every time a file is generated.
+    """
     log_file.parent.mkdir(parents=True, exist_ok=True)
 
     logger = logging.getLogger("ogg_avro_generator")
@@ -52,15 +57,44 @@ def setup_logger(log_file: Path) -> logging.Logger:
 # ============================================================
 
 def now_iso() -> str:
+    """
+    Return ISO timestamp with timezone.
+    Example: 2026-04-15T11:20:30.123456+07:00
+    """
     return datetime.now(TZ_UTC_PLUS_7).isoformat()
 
 
+def format_date_only(dt: datetime) -> str:
+    """
+    Return strict date string in YYYY-MM-DD format.
+    Example: 2024-10-19
+    """
+    return dt.strftime("%Y-%m-%d")
+
+
 def nullable(avro_type: Any) -> List[Any]:
+    """
+    Build nullable Avro union type: ["null", <type>]
+    """
     return ["null", avro_type]
 
 
 def decimal_to_string(value: Decimal | None) -> Optional[str]:
+    """
+    Store decimal as string for simpler Avro generation and better compatibility.
+    """
     return None if value is None else str(value)
+
+
+def generate_customer_id(sequence_number: int) -> int:
+    """
+    Generate unique customer_id from a strictly increasing sequence number.
+    This guarantees uniqueness within one run as long as sequence_number
+    is never reused.
+    """
+    if sequence_number <= 0:
+        raise ValueError("sequence_number must be greater than 0")
+    return sequence_number
 
 
 # ============================================================
@@ -205,10 +239,23 @@ OGG_ENVELOPE_SCHEMA: Dict[str, Any] = {
 # ============================================================
 
 def build_customer_row(customer_id: int, full_name: str) -> Dict[str, Any]:
+    """
+    Build one customer record.
+
+    Important:
+    - customer_id is passed in from a unique sequence generator
+    - last_trade_date is always generated in strict YYYY-MM-DD format
+      so it can be used safely later as Hudi partition column
+    """
     base_text = (
         f"Customer profile for {full_name}. "
         f"Stock company customer record. "
         f"customer_id={customer_id}. "
+    )
+
+    # Ensure date-only format for Hudi partitioning compatibility
+    last_trade_date_value = format_date_only(
+        datetime(2024, 10, 1, tzinfo=TZ_UTC_PLUS_7) + timedelta(days=(customer_id % 120))
     )
 
     row: Dict[str, Any] = {
@@ -280,7 +327,7 @@ def build_customer_row(customer_id: int, full_name: str) -> Dict[str, Any]:
         "portfolio_value": decimal_to_string(Decimal("230000000.75")),
         "realized_pnl": decimal_to_string(Decimal("1200000.25")),
         "unrealized_pnl": decimal_to_string(Decimal("3500000.10")),
-        "last_trade_date": "2026-04-14",
+        "last_trade_date": last_trade_date_value,
         "last_login_ts": now_iso(),
         "preferred_language": "vi",
         "preferred_channel": "MOBILE_APP",
@@ -339,10 +386,12 @@ def build_insert_event(customer_id: int, full_name: str) -> Dict[str, Any]:
 def build_update_event(customer_id: int, old_name: str, new_name: str) -> Dict[str, Any]:
     before = build_customer_row(customer_id, old_name)
     after = build_customer_row(customer_id, new_name)
+
     after["email"] = f"updated_{customer_id}@example.com"
     after["risk_level"] = "HIGH"
     after["updated_by"] = "BATCH_JOB"
     after["updated_ts"] = now_iso()
+
     return {
         "op_type": "U",
         "table": TABLE_NAME,
@@ -369,6 +418,12 @@ def build_delete_event(customer_id: int, full_name: str) -> Dict[str, Any]:
 
 
 def build_event(customer_id: int) -> Dict[str, Any]:
+    """
+    Rotate CDC event types:
+    - mod 1 -> insert
+    - mod 2 -> update
+    - mod 0 -> delete
+    """
     mod = customer_id % 3
     if mod == 1:
         return build_insert_event(customer_id, f"Customer {customer_id}")
@@ -389,12 +444,22 @@ def get_file_size(file_path: Path) -> int:
     return file_path.stat().st_size if file_path.exists() else 0
 
 
-def write_avro_file(output_file: Path, schema: Dict[str, Any], records: List[Dict[str, Any]]) -> None:
+def write_avro_file(
+    output_file: Path,
+    schema: Dict[str, Any],
+    records: List[Dict[str, Any]]
+) -> None:
     output_file.parent.mkdir(parents=True, exist_ok=True)
     parsed_schema = parse_schema(schema)
 
     with output_file.open("wb") as f:
-        writer(f, parsed_schema, records, codec="deflate", sync_interval=16000)
+        writer(
+            f,
+            parsed_schema,
+            records,
+            codec="deflate",
+            sync_interval=16000,
+        )
 
 
 def generate_avro_file_until_target_size(
@@ -403,13 +468,24 @@ def generate_avro_file_until_target_size(
     logger: logging.Logger,
     batch_size: int = 1000,
 ) -> None:
+    """
+    Generate Avro file until size reaches at least target_size_bytes.
+
+    Approach:
+    - generate records in memory
+    - rewrite full Avro file each round
+    - stop when final size >= target
+
+    This avoids append-mode issues with Avro container files.
+    """
     records: List[Dict[str, Any]] = []
-    next_customer_id = 1
+    next_sequence_number = 1
 
     while True:
         for _ in range(batch_size):
-            records.append(build_event(next_customer_id))
-            next_customer_id += 1
+            customer_id = generate_customer_id(next_sequence_number)
+            records.append(build_event(customer_id))
+            next_sequence_number += 1
 
         write_avro_file(output_file, OGG_ENVELOPE_SCHEMA, records)
 
@@ -438,6 +514,10 @@ def generate_avro_file_until_target_size(
     print(f"Total records : {len(records)}")
     print(f"Log file      : {LOG_FILE.resolve()}")
 
+
+# ============================================================
+# 7) Main
+# ============================================================
 
 def main() -> None:
     logger = setup_logger(LOG_FILE)
