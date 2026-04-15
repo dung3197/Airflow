@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-import os
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
@@ -20,7 +19,6 @@ OUTPUT_DIR = Path("output")
 OUTPUT_FILE = OUTPUT_DIR / "ogg_customer_events.avro"
 LOG_FILE = OUTPUT_DIR / "ogg_customer_events.log"
 
-# Requirement: generated Avro file must be at least 50 MB
 TARGET_FILE_SIZE_MB = 50
 TARGET_FILE_SIZE_BYTES = TARGET_FILE_SIZE_MB * 1024 * 1024
 
@@ -32,16 +30,11 @@ TABLE_NAME = "STOCK.CUSTOMER"
 # ============================================================
 
 def setup_logger(log_file: Path) -> logging.Logger:
-    """
-    Configure a file-based logger.
-    A log entry is appended every time a file is generated.
-    """
     log_file.parent.mkdir(parents=True, exist_ok=True)
 
     logger = logging.getLogger("ogg_avro_generator")
     logger.setLevel(logging.INFO)
 
-    # Avoid duplicate handlers if script is run multiple times in same process
     if not logger.handlers:
         file_handler = logging.FileHandler(log_file, encoding="utf-8")
         formatter = logging.Formatter(
@@ -71,8 +64,7 @@ def decimal_to_string(value: Decimal | None) -> Optional[str]:
 
 
 # ============================================================
-# 4) Customer schema definition
-#    You can keep extending this list to reflect the real table.
+# 4) Customer schema
 # ============================================================
 
 CUSTOMER_COLUMNS: List[Dict[str, Any]] = [
@@ -179,20 +171,11 @@ CUSTOMER_COLUMNS: List[Dict[str, Any]] = [
     {"name": "securities_depository_flag", "type": nullable("boolean"), "default": None},
 ]
 
-# Extend to make the nested structure larger and more realistic
 for i in range(1, 41):
     CUSTOMER_COLUMNS.append(
-        {
-            "name": f"custom_attr_{i:03d}",
-            "type": nullable("string"),
-            "default": None,
-        }
+        {"name": f"custom_attr_{i:03d}", "type": nullable("string"), "default": None}
     )
 
-
-# ============================================================
-# 5) Avro schemas
-# ============================================================
 
 CUSTOMER_RECORD_SCHEMA: Dict[str, Any] = {
     "type": "record",
@@ -218,20 +201,14 @@ OGG_ENVELOPE_SCHEMA: Dict[str, Any] = {
 
 
 # ============================================================
-# 6) Data generation helpers
+# 5) Data generation
 # ============================================================
 
 def build_customer_row(customer_id: int, full_name: str) -> Dict[str, Any]:
-    """
-    Create one nested customer record.
-    This intentionally includes many populated string fields so the final
-    Avro file grows to the requested size in a predictable way.
-    """
     base_text = (
         f"Customer profile for {full_name}. "
-        f"This record belongs to a stock company customer domain and contains "
-        f"account, KYC, AML, trading, settlement, and marketing profile data. "
-        f"Customer id={customer_id}. "
+        f"Stock company customer record. "
+        f"customer_id={customer_id}. "
     )
 
     row: Dict[str, Any] = {
@@ -326,7 +303,7 @@ def build_customer_row(customer_id: int, full_name: str) -> Dict[str, Any]:
         "updated_ts": now_iso(),
         "approved_by": "SUPERVISOR01",
         "approved_ts": now_iso(),
-        "remark": base_text * 2,
+        "remark": base_text * 3,
         "source_system": "CORE_CRM",
         "external_customer_id": f"EXT{customer_id:08d}",
         "trading_permission": "Y",
@@ -338,12 +315,9 @@ def build_customer_row(customer_id: int, full_name: str) -> Dict[str, Any]:
         "securities_depository_flag": True,
     }
 
-    # Fill extra attributes with sufficiently long content
     for i in range(1, 41):
         row[f"custom_attr_{i:03d}"] = (
-            f"custom-value-{customer_id}-{i} | "
-            f"{base_text}"
-            f"attribute-sequence={i}"
+            f"custom-value-{customer_id}-{i} | {base_text} attribute-sequence={i}"
         )
 
     return row
@@ -358,20 +332,17 @@ def build_insert_event(customer_id: int, full_name: str) -> Dict[str, Any]:
         "before": None,
         "after": build_customer_row(customer_id, full_name),
         "csn": str(100000000 + customer_id),
-        "pos": f"{20000000000000000000 + customer_id}",
+        "pos": str(20000000000000000000 + customer_id),
     }
 
 
 def build_update_event(customer_id: int, old_name: str, new_name: str) -> Dict[str, Any]:
     before = build_customer_row(customer_id, old_name)
     after = build_customer_row(customer_id, new_name)
-
     after["email"] = f"updated_{customer_id}@example.com"
     after["risk_level"] = "HIGH"
     after["updated_by"] = "BATCH_JOB"
     after["updated_ts"] = now_iso()
-    after["remark"] = f"Customer profile updated for customer_id={customer_id}. " * 10
-
     return {
         "op_type": "U",
         "table": TABLE_NAME,
@@ -380,7 +351,7 @@ def build_update_event(customer_id: int, old_name: str, new_name: str) -> Dict[s
         "before": before,
         "after": after,
         "csn": str(100000000 + customer_id + 1000),
-        "pos": f"{20000000000000000000 + customer_id + 1000}",
+        "pos": str(20000000000000000000 + customer_id + 1000),
     }
 
 
@@ -393,38 +364,37 @@ def build_delete_event(customer_id: int, full_name: str) -> Dict[str, Any]:
         "before": build_customer_row(customer_id, full_name),
         "after": None,
         "csn": str(100000000 + customer_id + 2000),
-        "pos": f"{20000000000000000000 + customer_id + 2000}",
+        "pos": str(20000000000000000000 + customer_id + 2000),
     }
 
 
 def build_event(customer_id: int) -> Dict[str, Any]:
-    """
-    Rotate event types to simulate CDC stream:
-    - 1st record pattern: insert
-    - 2nd record pattern: update
-    - 3rd record pattern: delete
-    """
     mod = customer_id % 3
     if mod == 1:
         return build_insert_event(customer_id, f"Customer {customer_id}")
-    elif mod == 2:
+    if mod == 2:
         return build_update_event(
             customer_id,
             f"Customer {customer_id} Old",
             f"Customer {customer_id} New",
         )
-    else:
-        return build_delete_event(customer_id, f"Customer {customer_id}")
+    return build_delete_event(customer_id, f"Customer {customer_id}")
 
 
 # ============================================================
-# 7) Main generation logic
+# 6) File generation
 # ============================================================
 
 def get_file_size(file_path: Path) -> int:
-    if not file_path.exists():
-        return 0
-    return file_path.stat().st_size
+    return file_path.stat().st_size if file_path.exists() else 0
+
+
+def write_avro_file(output_file: Path, schema: Dict[str, Any], records: List[Dict[str, Any]]) -> None:
+    output_file.parent.mkdir(parents=True, exist_ok=True)
+    parsed_schema = parse_schema(schema)
+
+    with output_file.open("wb") as f:
+        writer(f, parsed_schema, records, codec="deflate", sync_interval=16000)
 
 
 def generate_avro_file_until_target_size(
@@ -433,49 +403,24 @@ def generate_avro_file_until_target_size(
     logger: logging.Logger,
     batch_size: int = 1000,
 ) -> None:
-    """
-    Generate Avro file until file size reaches at least target_size_bytes.
-
-    Notes:
-    - Data is written in batches to avoid storing all records in memory.
-    - The file may end up slightly larger than the target, which is acceptable
-      because the requirement says "at least 50MB".
-    """
-    output_file.parent.mkdir(parents=True, exist_ok=True)
-
-    parsed_schema = parse_schema(OGG_ENVELOPE_SCHEMA)
-
-    total_records = 0
+    records: List[Dict[str, Any]] = []
     next_customer_id = 1
 
-    with output_file.open("wb") as f:
-        while True:
-            records_batch: List[Dict[str, Any]] = []
+    while True:
+        for _ in range(batch_size):
+            records.append(build_event(next_customer_id))
+            next_customer_id += 1
 
-            for _ in range(batch_size):
-                records_batch.append(build_event(next_customer_id))
-                next_customer_id += 1
+        write_avro_file(output_file, OGG_ENVELOPE_SCHEMA, records)
 
-            writer(
-                f,
-                parsed_schema,
-                records_batch,
-                codec="deflate",
-                sync_interval=16000,
-            )
+        current_size = get_file_size(output_file)
+        print(
+            f"Current file size: {current_size / (1024 * 1024):.2f} MB | "
+            f"records generated: {len(records)}"
+        )
 
-            total_records += len(records_batch)
-            f.flush()
-            os.fsync(f.fileno())
-
-            current_size = get_file_size(output_file)
-            print(
-                f"Current file size: {current_size / (1024 * 1024):.2f} MB | "
-                f"records generated: {total_records}"
-            )
-
-            if current_size >= target_size_bytes:
-                break
+        if current_size >= target_size_bytes:
+            break
 
     final_size = get_file_size(output_file)
 
@@ -484,19 +429,15 @@ def generate_avro_file_until_target_size(
         str(output_file.resolve()),
         final_size,
         final_size / (1024 * 1024),
-        total_records,
+        len(records),
     )
 
     print("\nGeneration completed successfully.")
-    print(f"Output file      : {output_file.resolve()}")
-    print(f"Final size       : {final_size / (1024 * 1024):.2f} MB")
-    print(f"Total records    : {total_records}")
-    print(f"Log file         : {LOG_FILE.resolve()}")
+    print(f"Output file   : {output_file.resolve()}")
+    print(f"Final size    : {final_size / (1024 * 1024):.2f} MB")
+    print(f"Total records : {len(records)}")
+    print(f"Log file      : {LOG_FILE.resolve()}")
 
-
-# ============================================================
-# 8) Entrypoint
-# ============================================================
 
 def main() -> None:
     logger = setup_logger(LOG_FILE)
