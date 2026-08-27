@@ -1,0 +1,68 @@
+Tôi đã cập nhật trực tiếp tài liệu SOP. Phần triển khai hiện được viết lại theo hướng có thể đưa cho DBA/Operator làm tuần tự từ đầu, thay vì chỉ mô tả logic.
+
+Các thay đổi quan trọng nhất:
+
+Xác định rõ [SourceDB] là database chứa bảng nguồn và đang được Debezium CDC.
+cdc_admin.table_state, rotation_queue, rotation_log, DDL trigger, DML Guard và capture instances đều nằm trong [SourceDB], không nằm trong master/msdb.
+master chỉ liên quan khi tạo SQL Server login cho worker.
+msdb chỉ liên quan nếu chọn SQL Server Agent Job thay cho Python worker.
+Debezium notification được cấu hình trên Kafka Connect, topic notification nằm trên Kafka, không phải SQL Server.
+Bổ sung thứ tự triển khai bắt buộc từ Bước 0 → Bước 12.
+Bổ sung chính xác account nào chạy từng bước và quyền tương ứng.
+Sửa cả DDL Trigger và DML Guard thành WITH EXECUTE AS OWNER, để Application/Developer không phải được cấp quyền trực tiếp vào cdc_admin.*. SQL Server hỗ trợ EXECUTE AS cho cả DML và DDL trigger.
+Xác nhận sp_cdc_enable_table chỉ tác động lên current database, cho phép tối đa 2 capture instances/table và yêu cầu db_owner.
+Xác nhận sp_cdc_disable_table cũng yêu cầu db_owner.
+DDL trigger ON DATABASE yêu cầu ALTER ANY DATABASE DDL TRIGGER; DML trigger yêu cầu ALTER trên table.
+CREATE TABLE yêu cầu CREATE TABLE trên database và ALTER trên schema chứa table.
+
+Thứ tự production hiện được chuẩn hóa thành:
+
+0.  Kiểm tra SourceDB đã enable CDC
+        ↓
+1.  Tạo cdc_admin schema
+        ↓
+2.  Tạo table_state
+        ↓
+3.  Tạo rotation_queue
+        ↓
+4.  Tạo rotation_log
+        ↓
+5.  Seed trạng thái các capture instance hiện tại
+        ↓
+6.  Tạo svc_cdc_rotation
+        ↓
+7.  Deploy + START Worker
+        ↓
+8.  Cấu hình Debezium notification
+    + kiểm tra Worker consume được Kafka notification
+        ↓
+9.  Tạo DML Guard trên từng source table
+        ↓
+10. Tạo Database DDL Trigger
+        ↓
+11. Smoke test ALTER → rotation → Debezium → cleanup
+        ↓
+12. GO-LIVE
+
+Một điểm tôi đã nhấn mạnh trong tài liệu là DDL trigger phải được tạo gần cuối, không phải đầu tiên. Nếu tạo DDL trigger trước table_state, queue, worker và DML Guard thì có thể xảy ra ALTER TABLE trong lúc các dependency chưa sẵn sàng.
+
+Ngoài ra, baseline quyền của Worker hiện được xác định rõ:
+
+SQL Server login:
+svc_cdc_rotation
+
+Server role:
+KHÔNG sysadmin
+
+SourceDB:
+db_owner
+
+master:
+không cần user đặc biệt ngoài việc login tồn tại
+
+msdb:
+không cần nếu dùng Python/external worker
+
+Lý do Worker cần db_owner trên [SourceDB] là Microsoft hiện quy định cả sys.sp_cdc_enable_table và sys.sp_cdc_disable_table đều yêu cầu membership trong fixed database role này.
+
+Tài liệu SOP hiện tại đã được cập nhật trực tiếp với các nội dung này.
